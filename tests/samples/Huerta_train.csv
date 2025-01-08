@@ -1,0 +1,12 @@
+runType,bank
+Ttot,1.
+fe,2048
+kindPSD,realistic,MLGWtools/tests/data/aligo_O4high.txt,
+mint,5.,75.
+tcint,0.75,0.99
+NbB,10,
+kindTemplate,EOB,
+kindBank,linear,
+step,1.,
+whitening,1,
+flims,15.,1024.

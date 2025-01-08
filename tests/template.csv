@@ -1,0 +1,8 @@
+runType,template
+Ttot,1.
+fe,4096
+kindPSD,analytic,
+flims,10.,1024.
+whitening,1,
+kindTemplate,EOB,
+properties,55.,33.,0.,0.,0.,0.,0.,0.,10.,

@@ -1,0 +1,6 @@
+runType,noise
+Ttot,10.
+fe,2048
+kindPSD,analytic,
+flims,10.,1024.
+whitening,1,

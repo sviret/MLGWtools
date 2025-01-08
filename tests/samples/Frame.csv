@@ -1,0 +1,9 @@
+runType,frame
+Ttot,50.
+fe,2048
+kindPSD,realistic,MLGWtools/tests/data/aligo_O4high.txt,
+kindTemplate,EOB,
+whitening,1,
+flims,15.,1024.
+ninj,50,
+length,2000.,

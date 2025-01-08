@@ -1,0 +1,7 @@
+batch_size,350
+lr,0.0025
+kindTraining,Int
+tabEpochs,2,6,12,36
+tabSNR,32,16,24,12,16,8,12,6
+trainSample,Huerta_train-1chunk-realistic-EOB-linear-1-1.0s.p
+testSample,Huerta_test-1chunk-realistic-EOB-linear-1-1.0s.p
