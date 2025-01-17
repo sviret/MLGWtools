@@ -1,0 +1,27 @@
+# Main config file for simple noise sequence prod 
+runType,noise
+
+# Sequence length (in seconds)
+Ttot,10.
+# Sampling frequency (in Hz)
+fe,2048
+
+# The type of noise sensitivity 
+# available are 'flat', 'analytic', or 'realistic'
+# if choosing the last one you should provide a text file containing
+# the profile
+kindPSD,analytic,
+
+# Within which frequency range the noise will be produced
+# keep in mind that fmax should be <f2/2 (Nyquist cut)
+# for realistic profile you need usually fmin>10Hz
+flims,10.,1024.
+
+# Whitened data (1) or not (0) 
+# if 1 the data will be whitened in the frequency domain using the PSD provided
+# if 0 you will get the raw data unwhitened
+# if 2 you will get whitened data from a zero-latency FIR filter in the time domain (experimental) 
+whitening,1,
+
+# Uncomment this to get verbose mode ON
+#verbose

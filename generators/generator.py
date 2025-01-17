@@ -1,73 +1,71 @@
+'''
+*** Generator ***
+
+Central class for data samples production. 
+
+Based on the parameters defined in csv option files, this class
+will produce either the samples for ML training, or simple frames containing 
+noise and injections
+
+'''
+
+
 import numpy as npy
 import matplotlib.pyplot as plt
 import pickle
 import csv
 import os
 import time
-import MLGWtools.generators.noises as gn
-import MLGWtools.generators.signals as gt
-#from gwpy.timeseries import TimeSeries
 from numcompress import compress, decompress
 
-#constantes physiques
-G=6.674184e-11
-Msol=1.988e30
-c=299792458
-MPC=3.086e22
+import MLGWtools.generators.noises as gn
+import MLGWtools.generators.signals as gt
 
 
 ######################################################################################################################################################################################
 parameters = {'font.size': 15,'axes.labelsize': 15,'axes.titlesize': 15,'figure.titlesize': 15,'xtick.labelsize': 15,'ytick.labelsize': 15,'legend.fontsize': 15,'legend.title_fontsize': 15,'lines.linewidth' : 3,'lines.markersize' : 10, 'figure.figsize' : [10,5]}
 plt.rcParams.update(parameters)
-  
 #################################################################################################################################################################################################
-'''
-Class handling gravidational wave dataset production (either for training or testing)
 
-Options:
-
---> mint     : Solar masses range (mmin,mmax) for the (m1,m2) mass grid to be produced
---> step     : Mass step between two samples
---> NbB      : Number of background realisations per template
---> tcint    : Range for the coalescence time within the last signal chunk (in sec, should be <Ttot)
-               if the last chunk has the length T, the coalescence will be randomly placed within the range
-               [tcint[0]*T,tcint[1]*T]
---> choice   : The template type (EOB or EM)
---> kindBank : The type of mass grid used (linear or optimal)
---> whitening: Frequency-domain or time-domain whitening (1 or 2) 
---> ninj     : Number of injections you want to produce (frame mode)
---> txtfile  : Text file containing a list of injection (typically a bank file)
-'''
 
 
 class Generator:
+
+
+
+    '''
+    GENERATOR 1/
+    
+    Object init. A csv file is always required
+    '''
 
     def __init__(self,paramFile):
     
         if os.path.isfile(paramFile):
             self._readParamFile(paramFile)
         else:
-            raise FileNotFoundError("Param file required")
-
+            print("No init file provided, you're on your own there...")
     
-    # Produce a data frame with injections
+    '''
+    GENERATOR 2/
 
+    Produce a data frame with injections. Injections can be randomly chosen or selected from a txt file
+    provided in the job options
+    '''
+    
     def buildFrame(self):
         
         if self.__rType!='frame':
             raise Exception("Your job type is not frame, you are not supposed to use this function")
-            
-        start_time = time.time()
-        print("Starting sim data frame generation")
-    
-        # Instantiate the objects
+        
+        # Instantiate the objects for noise and injection prod
 
         self.initNoise()
         self.initTemplate()
 
         # First produces the noise sequence with the correct duration
 
-        nitf = 1  # How many detectors ? 
+        nitf = 1  # How many detectors (keep it to one for the moment) ? 
 
         self.__Noise=[]
         self.__Signal=[]
@@ -94,46 +92,56 @@ class Generator:
 
             if len(self.__injparams)!=0 :
                 ligne_aleatoire = npy.random.choice(self.__injparams).strip().split(',')
-                coord=np.array(ligne_aleatoire,dtype=float)
+                coord=npy.array(ligne_aleatoire,dtype=float)
                 # !id,m1,m2,spin1x,spin1y,spin1z,spin2x,spin2y,spin2z,chieff,chip,tcoal,SNRH,SNRL
                 id = int(coord[0])
                 m1 = coord[1]
                 m2 = coord[2]
-
-                self.__signal.majParams(coord[1],coord[2],s1x=coord[3],s2x=coord[6],
-                                        s1y=coord[4],s2y=coord[7],s1z=coord[5],s2z=coord[8])
+                # Bank format
+                self.__signal.majParams(coord[1],coord[2],s1x=0.,s2x=0.,
+                                        s1y=0.,s2y=0.,s1z=coord[3],s2z=coord[4])
+                # Inj file format (SV need to make it complient)
+                #self.__signal.majParams(coord[1],coord[2],s1x=coord[3],s2x=coord[6],
+                #                        s1y=coord[4],s2y=coord[7],s1z=coord[5],s2z=coord[8])
             else :
                 id = -1
                 m1=npy.random.uniform(5,75)
                 m2=npy.random.uniform(5,75)
                 self.__signal.majParams(m1,m2)
 
-            SNR=npy.random.uniform(5,40)
+            SNR=npy.random.uniform(50,50)
 
-            self.__signal.getNewSample(Tsample=self.__signal.duration())
+            self.__signal.getNewSample(Tsample=self.__signal.gensignal())
             data=self.__signal.signal()        # Whitened and normalised to SNR**2=1
             data_r=self.__signal.signal_raw()/self.__signal.norma()  # Raw and normalised
 
             randt=npy.random.normal((i+1)*interval,interval/5.)
-            inj=[id,m1,m2,SNR,randt]
-            self.__injections.append(inj)
-            print("Injection",i,"(id,m1,m2,SNR,tc)=(",f'{id}',f'{m1:.1f}',f'{m2:.1f}',f'{SNR:.1f}',f'{randt:.1f}',")")
 
             # Where to add the first signal in the frame
-            idxstart=int((randt-self.__signal.duration())*self.__listfe[0])
-
+            idxstart=int((randt-self.__signal.gensignal())*self.__listfe[0])
+            idxend=int(randt*self.__listfe[0])
             if idxstart<0:
                 idxstart=0
-    
-            # Add injection without antenna pattern
-            for j in range(len(data)):
-                self.__Signal[0][0][idxstart+j]+=SNR*data[j]
-                self.__Signal[0][1][idxstart+j]+=SNR*data_r[j]
-    
+            if idxend>=len(self.__Signal[0][0]):
+                idxend=len(self.__Signal[0][0])
+            
+   
+            length=idxend-idxstart
+            idxmax=npy.argmax(npy.abs(data[-length:]))
+            tpeak=float(idxmax+idxstart)/self.__listfe[0]
+            
+            inj=[id,m1,m2,SNR,tpeak]
+            self.__injections.append(inj)
+
+            print("Injection",i,"(id,m1,m2,SNR,tc)=(",f'{id}',f'{m1:.1f}',f'{m2:.1f}',f'{SNR:.1f}',f'{tpeak:.1f}',")")
+
+            self.__Signal[0][0][idxstart:idxend]+=SNR*data[-length:]
+            self.__Signal[0][1][idxstart:idxend]+=SNR*data_r[-length:]
             data=[]
             data_r=[]
 
-        # Injection process over, self.__Signal[0] now contains all the injections
+        # Injection process over, __Signal[0][0] now contains all the injections whitened, 
+        # and raw in __Signal[0][1]
         # Add them to noise to get the complete strain
                 
         self.__Noise[0][0] += self.__Signal[0][0] # Whitened strain
@@ -158,8 +166,11 @@ class Generator:
         plt.plot(npy.arange(npts)*norm, self.__Signal[0][1])
         plt.show()
 
-    
-    # Produce a training/test sample
+    '''
+    GENERATOR 3/
+
+    Produce a bank of data for network tests
+    '''
 
     def buildSample(self):
         
@@ -202,6 +213,13 @@ class Generator:
         self.plotSNRmap()
 
 
+    '''
+    GENERATOR 4/
+
+    Interfaces with the classes handling noise and signal generation
+    '''
+
+
     def initNoise(self):
         self.__noise = gn.Noises(Ttot=self.__listTtot,fe=self.__listfe,kindPSD=self.__kindPSD,
                                  fmin=self.__fmin,fmax=self.__fmax,whitening=self.__white,
@@ -222,7 +240,7 @@ class Generator:
 
 
     '''
-    DATASET 1/
+    GENERATOR 5/
     
     Parser of the parameters csv file
     '''
@@ -233,11 +251,11 @@ class Generator:
         fdir=paramFile.split('/')
         self.__fname=fdir[len(fdir)-1].split('.')[0]
        
-
         with open(paramFile) as mon_fichier:
               mon_fichier_reader = csv.reader(mon_fichier, delimiter=',')
               lignes = [x for x in mon_fichier_reader]
 
+        # Default parameters
         self.__rType='none'
         self.__nTtot=-1  
         self.__Ttot=-1
@@ -256,7 +274,7 @@ class Generator:
         self.__NbB=1
         self.__step=1.
         self.__mint=[10.,30.]
-        self.__tcint=[10.,30.]        
+        self.__tcint=[0.7,0.95]        
         self.__ninj=10
         self.__length=1000.
         self.__injparams=[]
@@ -266,7 +284,14 @@ class Generator:
                  'mint','tcint','NbB','kindTemplate','kindBank','step',
                  'whitening','flims','verbose','length','ninj','injlist']
         
+        # Retieving the info in the job option
         for line in lignes:
+            if len(line)==0:
+                continue
+            if line[0]=='\n':
+                continue
+            if '#' in line[0]: # Comment, skip...
+                continue
             cmd=line[0]
             if cmd not in cmdlist:              
                 raise Exception(f"Keyword {cmd} unknown: abort")
@@ -363,7 +388,7 @@ class Generator:
                 self.__tcint[1]=float(line[2])
 
 
-
+    # Read the injection list provided
     def _readtxtFile(self,txtfile) :
         with open(txtfile, 'r') as f:
             lignes = f.readlines()
@@ -372,12 +397,15 @@ class Generator:
         return lignes_parametres
 
     '''
-    DATASET 2/
+    GENERATOR 6/
     
+    Bank production
     Produce a data grid with the mass coordinates
     '''
 
     def _genGrille(self):
+
+        # Default is a regular grid in the m1/m2 plan (linear)
 
         if self.__kindBank=='linear':
             n = self.__step
@@ -401,7 +429,7 @@ class Generator:
                     self.__GrilleMasses[c][1]=self.__mint[0]+j*self.__step
                     c+=1
                     
-        else: # The optimized bank (read from a file)
+        else: # The optimized bank (read from a file, not used for the moment)
             Mtmp=[]
             Sztmp=[]
             start=self.__length
@@ -441,8 +469,9 @@ class Generator:
             self.__Ntemplate=len(self.__GrilleMasses)
         
     '''
-    DATASET 3/
+    GENERATOR 7/
     
+    Bank production
     Produce the templates
     '''
 
@@ -490,8 +519,9 @@ class Generator:
              
              
     '''
-    DATASET 4/
+    GENERATOR 8/
     
+    Bank production
     Produce the noises here we fill everything
     '''
 
@@ -510,14 +540,22 @@ class Generator:
             for j in range(self.__nTtot):
                 self.__Noise[j][i]=temp[j]
 
+    '''
+    GENERATOR 9/
+    
+    Frame production
+        
+    Noise is produced in chunks of length Ttot 
+    from PSD using inverse FFTs. As the total duration
+    can be slightly larger, we need to take care of 
+    continuity between the different sequences
+    We therefore add a short screening window around each chunk
+
+    '''
 
     def _GenNoiseSequence(self,duration):
 
-        # Noise is produced in chunks of length Ttot 
-        # from PSD using inverse FFTs. As the total duration
-        # can be slightly larger, we need to take care of 
-        # continuity between the different sequences
-        # We therefore add a short screening window around each chunk
+
 
         taper=0.2 # tapering time, in seconds 
         nsamples=int(duration/(self.__noise.Ttot()-taper))
@@ -584,9 +622,9 @@ class Generator:
  
 
     '''
-    DATASET 5/
+    GENERATOR 10/
     
-    Get a dataset from the noise and signal samples
+    Get a dataset from a bank 
 
     SNRopt provides the SNR of the signal to add, could be a range
     size provides the number of samples you want to pick up, 0 means the full set
@@ -618,8 +656,8 @@ class Generator:
                 dset.append(temp+self.__Noise[i]) # Sig=0 in the second half, so this is just noise...
                 pureset.append(temp) 
             else:
-                dset.append(self.__Sig[i]*(SNRopt)+self.__Noise[i])
-                pureset.append(self.__Sig[i]*(SNRopt))
+                dset.append(self.__Sig[i]*(SNRopt[0])+self.__Noise[i])
+                pureset.append(self.__Sig[i]*(SNRopt[0]))
 
         # Dataset has form ([Nsample][N1],[Nsample][N2],...)
         # Reorganize it as [Nsample][N1+N2]
@@ -667,19 +705,22 @@ class Generator:
         return fdset, list_weights, fpureset, labels
 
 
+    '''
+    GENERATOR 10/
+    
+    Retrieve a frame 
+    '''
+
     def getFrame(self,det=0):
         nbands=self.__nTtot
         dset=[]
         fdset = []
         pset=[]
         fpset = []
-        finaldset=[]
         
         list_weights=self.__listSNR2chunks
         
         print("Getting a frame which will be analyzed with",nbands,"frequency bands")
-
-        #print(len(self.__Noise),len(self.__Noise[0]),len(self.__Noise[0][0][0]))
 
         dset.append(self.__Noise[det][0])
         pset.append(self.__Signal[det][0])
@@ -687,13 +728,11 @@ class Generator:
         fdset=npy.asarray(dset[0])
         fpset=npy.asarray(pset[0])
 
-        #print("In getframe",fdset.shape,fpset.shape)
-
         return fdset, list_weights, fpset
     
     
     '''
-    DATASET 7/
+    GENERATOR 11/
     
     Plots
     '''
@@ -734,14 +773,14 @@ class Generator:
             plt.colorbar()
             plt.title(label='Proportion of the total collectable power collected in the plan (m1,m2) : chunk N°'+str(k))
             plt.show()
+    
+    '''
+    GENERATOR 12/
+    
+    Macros saving and retrieving files in different formats 
+    '''
 
-    ##
-    #
-    # Save training samples 
-    #
-    ##
-
-
+    # For the banks
     def saveGenerator(self):
 
         # Save the sample in an efficient way
@@ -758,12 +797,8 @@ class Generator:
         pickle.dump(self,f)
         f.close()
                 
-    ##
-    #
-    # Save frames 
-    #
-    ##
-            
+
+    # For the frames   
     def saveFrame(self):
 
         # Save the sample in an efficient way
@@ -773,6 +808,7 @@ class Generator:
         
         gpsinit=1400000000
         
+        # Also save into the canonical GWF format, to test data in MBTA for example
         from gwpy.timeseries import TimeSeries
 
         t = TimeSeries(self.__Noise[0][1],channel="Noise_and_injections",sample_rate=self.__fe,unit="time",t0=self.__length+gpsinit)
@@ -813,21 +849,24 @@ class Generator:
         print("Opening the frame")
 
         data=npy.load(str(obj.__listfnames[0])+'.npz')
-        #obj.__Sig.append(data['arr_1'])
         obj.__Noise = data['arr_0']
         obj.__Signal = data['arr_1']
         data=[] # Release space
         f.close()
         return obj
     
+    '''
+    GENERATOR 13/
+    
+    Getters
+    '''
+
+
     def getTruth(self):
         return self.__injections
     
     def getBkParams(self):
         return self.__tmplist
-    
-    #def getTemplate(self,rank=0):
-    #    return self.__Sig[0][rank]
 
     def type(self):
         return self.__rType

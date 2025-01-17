@@ -171,11 +171,11 @@ class Results:
     def saveResults(self):
         #if not(os.path.isdir(dossier)):
         #    raise FileNotFoundError("Le dossier de sauvegarde n'existe pas")
-        fichier=self.__kindTraining+'-'+self.__kindTemplate+'-'+self.__kindBank+'-'+self.__kindPSD+'-1.p'
+        fichier='train_result-'+self.__kindTraining+'-1.p'
         c=1
         while os.path.isfile(fichier):
             c+=1
-            fichier=self.__kindTraining+'-'+self.__kindTemplate+'-'+self.__kindBank+'-'+self.__kindPSD+'-'+str(c)+'.p'
+            fichier='train_result-'+self.__kindTraining+'-'+str(c)+'.p'
             
         f=open(fichier, mode='wb')
         #pickle.dump(self,f)

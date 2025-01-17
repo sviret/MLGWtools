@@ -6,7 +6,7 @@
 mkdir WORK
 cd WORK
 git clone https://github.com/sviret/MLGWtools.git
-export PYTHONPATH=$PYTHONPATH:$PWD/MLGWtools
+export PYTHONPATH=$PYTHONPATH:$PWD
 ```
 
 ### 2. Create a conda environment with necessary packages installed

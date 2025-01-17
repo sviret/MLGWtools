@@ -1,0 +1,17 @@
+# Config file exemple for 2 frequency bands noise generation
+runType,noise
+
+# Here you give the 2 bands info, arranged in descending 
+# time order. For example below we will produce 10 seconds of noise
+# 9 seconds at 1024Hz followed by 1 second at 2048 Hz
+# There is no limitation for the number of bands.
+Ttot,1.,9.
+fe,2048,1024
+
+# For the other options, see explanations in noise.csv
+kindPSD,analytic,
+flims,10.,1024.
+whitening,1,
+
+# Uncomment this to get verbose mode ON
+#verbose

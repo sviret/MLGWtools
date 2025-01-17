@@ -1,0 +1,24 @@
+# Main job option to define the training bank of templates
+runType,bank
+# Length and frequency of the templates (should match the initial network size) 
+Ttot,1.
+fe,2048
+
+# The usual parameters to define the templates (see template.csv for definition)
+kindPSD,realistic,MLGWtools/generators/data/aligo_O4high.txt,
+whitening,1,
+flims,15.,1024.
+kindTemplate,EOB,
+
+# Definition of the mass grid for the templates
+# We will produce all the pairs between masses 5 and 75 with a step of 1
+mint,5.,75.
+step,1.,
+
+# Some last params to further increase the bank
+# for each template we will produce NbB realisation (here 5), each will 
+# be with a different noise and with coalescence randomly 
+# fired within tcint range (values given are the proportion of the time chunk)
+# So here the coalescence will be between 0.75s and 0.99s
+tcint,0.75,0.99
+NbB,5,

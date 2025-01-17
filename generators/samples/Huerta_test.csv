@@ -1,0 +1,13 @@
+# Producing a bank of templates for validation
+runType,bank
+Ttot,1.
+fe,2048
+kindPSD,realistic,MLGWtools/generators/data/aligo_O4high.txt,
+# Move a bit the masses wrt the training bank
+mint,5.5,75.5
+tcint,0.75,0.99
+NbB,2,
+kindTemplate,EOB,
+step,1.,
+whitening,1,
+flims,15.,1024.

@@ -1,0 +1,33 @@
+# Example of network training file 
+
+# Size of the batches used for the gradient descent
+batch_size,250
+
+# Learning rate
+lr,0.0025
+
+## Training properties
+# kindtraining gives info on how the SNR will be defined in the different tabEpochs
+# Int : events for the different epoch will be produced in intervals of SNR
+# Scr : events of the given epochs will have the same scalar SNR value
+kindTraining,Int
+
+# Lists providing the epochs where we change the training test SNR
+# and the SNR values
+# Here for example, we are in Int mode, so from epochs 0 to 1, SNR will be 
+# randomly distributed between 16 and 32. From epochs 2 to 8 it will be between
+# 12 and 24, and so on...
+tabEpochs,2,10,30,100
+tabSNR,32,16,24,12,16,8,12,6
+
+# Below is an example of scalar SNR training, the 2 tables have the same length
+#kindTraining,Scr
+#tabEpochs,2,9,25,50
+#tabSNR,32,24,16,6
+
+
+# Name of the training/testing samples files
+# It will be checked but they have to contain the same 
+# type of datas 
+trainSample,Huerta_train-1chunk.p
+testSample,Huerta_test-1chunk.p

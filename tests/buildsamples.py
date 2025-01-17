@@ -5,8 +5,8 @@ from MLGWtools.generators import generator as gd
 # and test samples
 #
 
-train_cfg = "MLGWtools/tests/samples/Huerta_train.csv"
-test_cfg = "MLGWtools/tests/samples/Huerta_test.csv"
+train_cfg = "MLGWtools/generators/samples/Huerta_train.csv"
+test_cfg = "MLGWtools/generators/samples/Huerta_test.csv"
 
 test=gd.Generator(paramFile=test_cfg)
 test.buildSample()

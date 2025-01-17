@@ -4,6 +4,13 @@ import pickle
 import csv
 from MLGWtools.generators import generator as gd
 
+'''
+*** trutils ***
+
+Class handling the network interface with data and the training 
+
+'''
+
 class trutils():
 
 
@@ -17,7 +24,7 @@ class trutils():
         else:
             raise FileNotFoundError("Le fichier de paramètres n'existe pas")
 
-
+        # Getting the datasets 
         self.__trainGenerator=gd.Generator.readGenerator(self.__tr_s)
         self.__testGenerator=gd.Generator.readGenerator(self.__te_s)
 
@@ -26,8 +33,9 @@ class trutils():
   
         print("Train and test samples are compatible and loaded, go on...")
 
+
     '''
-    _readparamfile: parse the training param file
+    _readparamfile: parse the csv param file
     '''
     
     def _readParamFile(self,paramFile):
@@ -50,6 +58,12 @@ class trutils():
                  'tabSNR','verbose','trainSample','testSample']
 
         for line in lignes:
+            if len(line)==0:
+                continue
+            if line[0]=='\n':
+                continue
+            if '#' in line[0]: # Comment, skip...
+                continue
             cmd=line[0]
             if cmd not in cmdlist:              
                 raise Exception(f"Keyword {cmd} unknown: abort")
@@ -67,10 +81,13 @@ class trutils():
                 self.__kindTraining=line[1] 
 
             if cmd=='tabSNR':
+                self.__tabSNR=[]  
                 for x in range(1,len(line)):
                     self.__tabSNR.append(float(line[x]))
 
             if cmd=='tabEpochs':
+                self.__tabEpochs=[]  
+                self.__tabEpochs.append(0)
                 for x in range(1,len(line)):
                     self.__tabEpochs.append(int(line[x]))
 
@@ -101,7 +118,6 @@ class trutils():
        
     '''
     _clear: reset everything
-    
     '''
     
     def _clear(self):
@@ -111,8 +127,7 @@ class trutils():
 
         
     '''
-    train: this is the main macro, here, taking as input the training sample
-    
+    train: this is the main training macro for a CNN-like network
     '''
     
     def train(self,net,SNRtest=7.5,results=None,verbose=True):
@@ -124,6 +139,12 @@ class trutils():
             for i in range(0,len(self.__tabSNR),2):
                 tabSNR2.append([self.__tabSNR[i],self.__tabSNR[i+1]])
             self.__tabSNR=tabSNR2
+        else:
+            tabSNR2=[]
+            for i in range(0,len(self.__tabSNR)):
+                tabSNR2.append([self.__tabSNR[i]])
+            self.__tabSNR=tabSNR2
+        #print(self.__tabSNR)         
 
         self.__net=net
         # First we pick data in the training sample and adapt it to the required starting SNR
@@ -173,7 +194,7 @@ class trutils():
         accuracy_t=[]
         loss_t=[]
         
-        for i in range(len(self.__tabSNR)-1):
+        for i in range(len(self.__tabSNR)):
         
             if i>0: # We start a new SNR range, need to update the training set
                 del self.__cTrainSet
@@ -195,7 +216,7 @@ class trutils():
                     cut_bottom = cut_top
                 
                 self.__cTrainSet=(list_inputs,labels,weight_sharing)
-                
+            #print(self.__tabSNR[i])
                  
             # Then run for the corresponding epochs at this SNR range/value
             nepochs=self.__tabEpochs[i+1]-self.__tabEpochs[i]
@@ -265,8 +286,7 @@ class trutils():
     @property
     def kindTraining(self):
         return self.__kindTraining
-        
-    @property
+     
     def batch_size(self):
         return self.__batch_size
         
@@ -284,6 +304,12 @@ class trutils():
     def tabSNR(self):
         return self.__tabSNR
 
+    def listSNR(self):
+        return self.__tabSNR
+    
+    def listEpochs(self):
+        return self.__tabEpochs
+
     @property
     def final_acc(self):
         return self.__final_acc
@@ -299,5 +325,7 @@ class trutils():
     @property
     def final_loss_t(self):
         return self.__final_loss_t
+    
+
         
 

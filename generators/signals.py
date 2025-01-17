@@ -8,6 +8,7 @@ from pycbc.waveform import utils
 from pycbc.pnutils import f_FRD
 from scipy import signal
 import MLGWtools.generators.noises as gn
+import scipy.fft
 
 #constantes physiques
 G=6.674184e-11
@@ -109,7 +110,6 @@ class GenTemplate:
         self._evolSnr = []
         self._evolSnrFreq = []
         self.__verb=verbose
- 
 
     '''
     Template 1/10
@@ -226,7 +226,8 @@ class GenTemplate:
             # Here we have the correct values
             self.__Tchirp=max(len(hp_tab)*self.__delta_t,self.__Tsample)
             self.__Tchirpd=len(hp_tabd)*self.__delta_t
-    
+            self.__Tchirpuse=min(len(hp_tab)*self.__delta_t,self.__Tsample)
+
             #print(self.__Tchirp,self.__Tchirpd)
 
             # Blackman window is defined differently here
@@ -400,6 +401,7 @@ class GenTemplate:
             plt.plot(w, self.__Stquad)
             plt.grid()
             plt.show()
+         
         
 
     '''
@@ -460,12 +462,13 @@ class GenTemplate:
             plt.plot(w, self.__Stblack)
             plt.grid()
             plt.show()
+            
         
-        self.__Sf[:]=npy.fft.fft(S,norm='ortho')
+        self.__Sf[:]=scipy.fft.fft(S,norm='ortho')
         
         # Normalized to be coherent w/PSD def (the option ortho is doing a special normalization which is
         # fine only if you do the invert tranform afterward)
-        self.__Sfn[:]=npy.fft.fft(S,norm='forward')/self.__delta_f
+        self.__Sfn[:]=scipy.fft.fft(S,norm='forward')/self.__delta_f
         del S
     
     '''
@@ -681,7 +684,7 @@ class GenTemplate:
     def _whitening(self,kindPSD,Tsample,norm):
         if kindPSD is None:
             print('No PSD given, one cannot normalize!!!')
-            self.__St[:]=npy.fft.ifft(self.__Sf,norm='ortho').real
+            self.__St[:]=scipy.fft.ifft(self.__Sf,norm='ortho').real
             return self.__St
         
         # Important point, noise and signal are produced over the same length, it prevent binning pbs
@@ -700,7 +703,7 @@ class GenTemplate:
         # The withened and normalized signal in time domain
         #
         if self.__whiten==1:
-            self.__St[:]=npy.fft.ifft(Sf,norm='ortho').real/(rho if norm else 1)
+            self.__St[:]=scipy.fft.ifft(Sf,norm='ortho').real/(rho if norm else 1)
             
         if self.__whiten==0:
             self.__St[:]=self.__Stblack/rho
@@ -712,7 +715,7 @@ class GenTemplate:
         #self.__St_filt = (signal.lfilter(Noise.whitener,1,tmp))*Noise.nf*npy.sqrt(self.__delta_t)/rho
         #self.__St_filt = (signal.lfilter(Noise.whitener,1,tmp))*Noise.nf/(rho*npy.sqrt(self.__N))
         #self.__St_filt = (signal.lfilter(Noise.whitener_MP*Noise.nf,1,self.__Stblack))
-        #self.__St_filt = (signal.lfilter(Noise.whitener_MP,1,npy.fft.ifft(self.__Sf,norm='ortho').real))
+        #self.__St_filt = (signal.lfilter(Noise.whitener_MP,1,scipy.fft.ifft(self.__Sf,norm='ortho').real))
         
         if self.__whiten==2:
             self.__St=self.__St_filt_ZL
@@ -996,6 +999,9 @@ class GenTemplate:
     def duration(self):
         return self.__Tchirp
 
+    def gensignal(self):
+        return self.__Tchirpuse
+
     def signal(self):
         return self.__St
     
@@ -1008,6 +1014,3 @@ class GenTemplate:
     def norma(self):
         return self.__norm
   
-############################################################################################################################################################################################
-#if __name__ == "__main__":
-#    main()

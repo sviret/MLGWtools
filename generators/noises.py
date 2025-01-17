@@ -3,11 +3,7 @@ import scipy
 import matplotlib.pyplot as plt
 import random
 from scipy import signal
-
-######################################################################################################################################################################################
-#parameters = {'font.size': 15,'axes.labelsize': 15,'axes.titlesize': 15,'figure.titlesize': 15,'xtick.labelsize': 15,'ytick.labelsize': 15,'legend.fontsize': 15,'legend.title_fontsize': 15,'lines.linewidth' : 3,'lines.markersize' : 10, 'figure.figsize' : [10,5]}
-#plt.rcParams.update(parameters)
-
+import scipy.fft
 
 '''
 Class handling noise generation
@@ -257,7 +253,7 @@ class Noises:
     '''
     NOISE 4/9
     
-    PSD type change
+    Retrieving PSD info from a text file 
     '''
 
     def _extractPSD(self,PSD):
@@ -385,19 +381,19 @@ class Noises:
         # For the ASD we take the square root, so sqrt(PSD*df)
 
         # Raw h(t) is always produced
-        self.__Ntnow = npy.fft.ifft(self.__Nf[:]*npy.sqrt(self.__delta_f),norm='forward').real
+        self.__Ntnow = scipy.fft.ifft(self.__Nf[:]*npy.sqrt(self.__delta_f),norm='forward').real
         
         if self.__whiten==0:     # No whitening
             self.__Nt[0] = self.__Ntnow
         elif self.__whiten==1:   # Whitening, so we normalise by the ASD
-            self.__Nt[0] = npy.fft.ifft(self.__Nf[:]/npy.sqrt(self.__PSDloc),norm='ortho').real
+            self.__Nt[0] = scipy.fft.ifft(self.__Nf[:]/npy.sqrt(self.__PSDloc),norm='ortho').real
         elif self.__whiten==2:   #Run the Zero-L FIR filter (EXPERIMENTAL)
             self.__Nt[0] = self.__nf*signal.lfilter(self.__whitener_MP,1,self.__Ntnow)*npy.sqrt(2*self.__delta_t)
       
         
         self.__Ntraw = self.__Nt[0].copy() # Raw data without resampling
 
-        self.__Nf2=npy.fft.fft(self.__Nt[0],norm='ortho') # Control
+        self.__Nf2=scipy.fft.fft(self.__Nt[0],norm='ortho') # Control
   
         #Run the main FIR filter
         #self.__tfilt = self.__nf*signal.lfilter(self.__whitener,1,npy.fft.ifft(self.__Nf[:],norm='ortho').real)
@@ -472,7 +468,7 @@ class Noises:
         plt.ylabel('h(t)')
         plt.grid(True, which="both", ls="-")
         plt.legend()
-        plt.show()
+       
 
     def plotNoiseTW(self):
 
@@ -497,7 +493,7 @@ class Noises:
         plot4.plot(listT2[0:500], self.__whitener_MP[0:500],'-')
 
         plt.tight_layout()
-        plt.show()
+       
 
 
     # The 1D projection (useful to check that noise has been correctly whitened
@@ -565,7 +561,7 @@ class Noises:
         plt.yscale('log')
         plt.xscale('log')
         plt.grid(True, which="both", ls="-")
-        plt.show()
+    
 
     def plotinvPSD(self):
         
@@ -625,6 +621,3 @@ class Noises:
     def Ttot(self):
         return self.__Ttot
 
-############################################################################################################################################################################################
-#if __name__ == "__main__":
-#    main()

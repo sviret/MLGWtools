@@ -1,11 +1,11 @@
 from MLGWtools.generators import generator as gd
 
 #
-# Here you put the config files to produce the training 
-# and test samples
+# Here you put the config files to produce the simulated
+# data frame
 #
 
-frame_cfg = "MLGWtools/tests/samples/Frame.csv"
+frame_cfg = "MLGWtools/generators/samples/Frame.csv"
 
 test=gd.Generator(paramFile=frame_cfg)
 test.buildFrame()

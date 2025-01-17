@@ -1,6 +1,10 @@
+'''
+Macro showing the usage of a CNN in simple case (one frequency band)
+'''
+
 import numpy as npy
-import matplotlib.pyplot as plt
 import pickle
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 from tensorflow.python.ops.numpy_ops import np_config
@@ -19,8 +23,8 @@ def parse_cmd_line():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--framefile","-f", help="Fichier pickle contenant les données à étudier",default=None)
-    parser.add_argument("--network","-n", help="Fichier h5 contenant le reseau entrainé",default=None)
-    
+    parser.add_argument("--network","-n", help="Fichier pickle contenant le reseau entrainé",default=None)
+    parser.add_argument("--step","-s", help="Temps entre chaque inférence",default=None)
     args = parser.parse_args()
     return args
 
@@ -48,27 +52,26 @@ listTtot=net.getListTtot() # List of frame sizes
 tTot=net.getBlockLength()  # Total length of a block
 nptsHF=int(tTot*fs)        # Size of a block in the original frame
 
-step=int(0.1*fs) 
 
 
-# 3. Trained network is loaded, one can use it on data
+# 3. Trained network is loaded, now load the data data
 
-frame_cfg = "MLGWtools/tests/samples/Frame.csv"
-
-test=gd.Generator(paramFile=frame_cfg)
-
+test=gd.Generator('nothing')
 inputFrame=test.readFrame(args.framefile)
     
 sample=inputFrame.getFrame()
 injections=inputFrame.getTruth()
-nblocks=int(len(sample[0])/step) # Number of steps to analyze the frame
-weight_sharing=npy.array(sample[1],dtype=npy.float32)
+
+
+step=int(float(args.step)*fs) 
+nblocks=int(len(sample[0])/step) # Number of steps necessary to analyze the frame
+
 output=[]
 output_S=[]
 Frameref=[]
 
 for j in range(nTot):
-    Frameref.append([])
+    Frameref.append([]) 
 
 # 4. Loop over frames to perform the inference
 
@@ -78,32 +81,36 @@ for i in range(nblocks):
     finalFrame=[]
     Frameref[0]=sample[0][i*step:i*step+nptsHF] # The temporal realization at max sampling
     ref=Frameref[0]
-                         
-    for j in range(nTot): # Resample the block
+    # ref contains the chunck of data we will provide to the network
+    # we need to reformat it a bit 
+     
+    for j in range(nTot): # Resample the block (particularly true for multibanding)
                             
-        #Pick up the data chunk
+        #Pick up the number of samples in chunk j
+
         ndatapts=int(listTtot[j]*fs)
         nttt=len(ref)
             
+        # Nt contains chunk j
         Nt=ref[-ndatapts:]
+        # We remove the chunk from ref
         ref=ref[:nttt-ndatapts]
+        # We resample Nt to the correct sampling frequency
         decimate=int(fs/listFe[j])
-            
         Frameref[j]=Nt[::int(decimate)]
+        # Add it to a temporary frame
         tmpfrm.append(npy.asarray(Frameref[j]))
-                        
+    
+    # resampledFrame is a 1D vector containing the data points at the correct 
+    # sampling freq for ech chunk. This is what we will feed to the network
     resampledFrame=npy.concatenate(tmpfrm)
+    # Some formatting steps for TFlow compliance
     finalFrame.append(resampledFrame)
     fFrame=npy.asarray(finalFrame)
-    
     data=npy.array(fFrame.reshape(1,-1,1),dtype=npy.float32)
 
     if data.shape[1]<npts: # Safety cut at the end
         break
-
-    TestSet=(data,weight_sharing)
-        
-    #res=usoftmax_f(net(TestSet[0].as_in_ctx(device),TestSet[1].as_in_ctx(device))).asnumpy()
         
     cut_top = 0
     cut_bottom = 0
@@ -113,154 +120,36 @@ for i in range(nblocks):
         cut_top += int(listTtot[k]*fs)
         list_inputs_val.append(data[:,cut_bottom:cut_top,:])
         cut_bottom = cut_top
-        #print(cut_bottom,cut_top,)
         
+    # We feed the network
     res = usoftmax_f(net.model.predict(list_inputs_val,verbose=0))
-    #print((i*step+nptsHF)*(1/fs),net.model.predict(list_inputs_val,verbose=0))
 
+    # Recover the probability to get a signal
     out=tf.keras.backend.get_value(res.T[1])[0]
-
     output.append(out)
+
     if (out>0.999):
         output_S.append(out)
         t_hit=(i*step+nptsHF)*(1/fs)
-        #print("Potential signal at t=",t_hit,out)
-        #for inj in injections:
-        #    if npy.abs(inj[4]-t_hit)<1.:
-        #        print("!Match injection:",inj)
-        #        break
+
+        print("Potential signal at t=",t_hit,out)
+        for inj in injections:
+            if npy.abs(inj[4]-t_hit)<1.:
+                print("!Match injection:",inj)
+                break
     else:
         output_S.append(0.)
         
-#print(net.model.summary())
 finalres=npy.array(output)
 finalres_S=npy.array(output_S)
 
-# Inference is done, output of the network is stored in vector output
-         
-i=0
-highSigs=[]
+# Inference is completed, output of the network is stored in vector output
+# Save the results
 
-# Loop over the output to form clusters
-
-for netres in output:
-
-    #
-    # Look if this value can belong to a cluster
-    #
-
-    nclust=len(highSigs)
-    missflag=0
-    if (netres>0.995): # Interesting value, does it belong to a cluster
-        if nclust==0: # No cluster yet, create one
-            highSigs.append([i])
-        else:         # Clusters exist, check is we are in or not
-            curr_clust=highSigs[nclust-1]
-            sclust=len(curr_clust)
-                
-            # End of the last cluster is the previous block, we add the new hit to the cluster
-            if (i-curr_clust[sclust-1]==1):
-                curr_clust.append(i)
-                highSigs.pop()
-                highSigs.append(curr_clust)
-            # End of the last cluster is the next to previous block, we add the new hit to the cluster
-            # As we accept one missed hit (just one)
-            elif (i-curr_clust[sclust-1]==2 and missflag==0):
-                #curr_clust.append(i-1)
-                curr_clust.append(i)
-                highSigs.pop()
-                highSigs.append(curr_clust)
-                missflag=1
-            # Last cluster is too far away, create a new cluster
-            else:
-                if sclust==1:
-                    highSigs.pop() # The last recorded cluster was one block only, remove the artefact
-                highSigs.append([i]) # New cluster
-                missflag=0
-    i+=1
-                    
-# End of cluster building stage    
-nclust=len(highSigs)
-if nclust==0:
-    print("No clus!!")
-    sys.exit()
-    
-# Remove the last cluster if only one block long
-if len(highSigs[len(highSigs)-1])==1:
-    highSigs.pop()
-
-# Now determine the cluster coordinates
-#
-# Center, average network output value, sigma of this average
-
-clust_truth=[]  # Clus is matched to an injections
-clust_vals=[]   # Cluster properties
-    
-for clust in highSigs:
-
-    clust_truth.append(-1)
-        
-    clust_val=0
-    clust_cen=0
-    clust_sd=0
-        
-    for val in clust:
-        res=output[val]
-        clust_val+=float(res)
-        clust_cen+=float(val)
-    clust_val/=len(clust)
-    clust_cen/=len(clust)
-    
-    for val in clust:
-        res=float(output[val])
-        clust_sd+=(res-clust_val)*(res-clust_val)
-            
-    clust_sd=npy.sqrt(clust_sd/len(clust))
-    clust_vals.append([clust_val,clust_cen,(clust_cen*step+nptsHF)*(1/fs),clust_sd,len(clust)])
-
-
-# Now establish the correspondence between clusters and injection
-
-found=0
-idx_inj=0
-    
-# Look at which injections have led to a cluster
-for inj in injections:
-    
-    inj.append(0)
-    tcoal=inj[4]
-        
-    # Check if it's into one cluster
-   
-    idx_clus=0
-    for clust in highSigs:
-        
-        tstart=(clust[0]*step+nptsHF)*(1/fs)
-        tend=(clust[len(clust)-1]*step+nptsHF)*(1/fs)
-        
-        #if (len(clust)>10):
-        #    print(tcoal,tstart,tend,len(clust))
-
-        if (tcoal>tstart-0.1 and tcoal<tend): # Injection is in the cluster
-            found+=1
-            inj[5]=len(clust)
-            clust_truth[idx_clus]=idx_inj
-            inj.append(clust_vals[idx_clus])
-            break
-        idx_clus+=1
-    idx_inj+=1
-    print(inj)
-
-idx_clus=0
-for clus in clust_truth:
-    print(clus,highSigs[idx_clus])
-    idx_clus+=1
-
-
-print("Found",found,"injections out of",len(injections))
-print("Among",len(highSigs),"clusters in total")
-
-
+f=open("network_output.p", mode='wb')        
+pickle.dump([finalres,injections,nptsHF,step],f)
+f.close()
+ 
 
 
 plot1 = plt.subplot2grid((3, 1), (0, 0), rowspan = 2)
@@ -272,6 +161,3 @@ plot2.plot(npy.arange(len(finalres))*step/fs, finalres,'.')
 plot2.plot(npy.arange(len(finalres))*step/fs, finalres_S,'.')
 plt.tight_layout()
 plt.show()
- 
-
-

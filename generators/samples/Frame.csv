@@ -1,0 +1,26 @@
+# Main option files to produce a data frame
+
+runType,frame
+
+# How many injections will be put in the frame
+ninj,10,
+
+# You have the possibility to use a list of predefined injections here
+# If not given masses will be chosen randomly
+# injlist,MLGWtools/generators/data/VT_test.txt,
+
+# Total frame duration, in seconds
+length,1000.,
+
+# Here we define properties for noises and injection (see template.csv and noise.csv for def)
+# Ttot should be large enough to produce proper noises chuncks, 50s is a standard choice
+# The chunck are properly stitched together to reach the total length
+Ttot,50.
+fe,2048
+kindPSD,realistic,MLGWtools/generators/data/aligo_O4high.txt,
+kindTemplate,EOB,
+whitening,1,
+flims,12.,2048.
+
+
+

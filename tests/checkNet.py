@@ -1,9 +1,7 @@
 '''
-Macro showing how to train the Huerta and George network
+Opening the result file and do some printout
 '''
 
-#from MLGWtools.networks import utils as tn
-#from MLGWtools.networks import CNN as cnn
 from MLGWtools.utils import useResults as ur
 import argparse
 
@@ -24,5 +22,5 @@ args = parse_cmd_line()
 res = ur.Results.readResults(args.param)
 printer=ur.Printer()
 printer.plotResults(res)
-printer.savePrints('bebert')
+printer.savePrints('trainres')
 
