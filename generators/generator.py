@@ -109,7 +109,7 @@ class Generator:
                 m2=npy.random.uniform(5,75)
                 self.__signal.majParams(m1,m2)
 
-            SNR=npy.random.uniform(50,50)
+            SNR=npy.random.uniform(5,50)
 
             self.__signal.getNewSample(Tsample=self.__signal.gensignal())
             data=self.__signal.signal()        # Whitened and normalised to SNR**2=1
