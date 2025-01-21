@@ -23,5 +23,5 @@ pip install gwpy
 ### 3. That's it, test that template generation macro works:
 
 ```
-python MLGWtools/tests/template_example.py MLGWtools/tests/template.csv
+python MLGWtools/tests/simple_example.py MLGWtools/generators/samples/noise.csv
 ```

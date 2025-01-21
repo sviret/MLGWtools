@@ -174,7 +174,7 @@ class Generator:
 
     def buildSample(self):
         
-        if self.__rType!='bank':
+        if self.__rType!='bank' and self.__rType!='ffactor' :
             raise Exception("Your job type is not bank, you are not supposed to use this function")
             
         start_time = time.time()
@@ -194,8 +194,13 @@ class Generator:
         
         print("2 After grille --- %s seconds ---" % (time.time() - start_time))
         
-        self._genSigSet()   # The signals
-        
+        if self.__rType=='bank':
+            self._genSigSet()   # The signals
+        else:
+            self._genSigSet_ff() # Signals without noise
+            print("3 After signal --- %s seconds ---" % (time.time() - start_time))
+            return 
+
         print("3 After signal --- %s seconds ---" % (time.time() - start_time))
         
         self._genNoiseSet() # The noises (one realization per template)
@@ -278,11 +283,13 @@ class Generator:
         self.__ninj=10
         self.__length=1000.
         self.__injparams=[]
+        self.__start=0
+        self.__stop=100    
 
         # List of available commands
         cmdlist=['runType','Ttot','fe','kindPSD','properties',
                  'mint','tcint','NbB','kindTemplate','kindBank','step',
-                 'whitening','flims','verbose','length','ninj','injlist']
+                 'whitening','flims','verbose','length','ninj','injlist','start','stop']
         
         # Retieving the info in the job option
         for line in lignes:
@@ -329,7 +336,8 @@ class Generator:
                 self.__injlist=line[1]
                 if os.path.isfile(self.__injlist):
                     self.__injparams = self._readtxtFile(self.__injlist)
-                    print("Retrieving injections parameters from file",self.__injlist)
+                    self.__kindBank='inputfile'
+                    print("Retrieving injections/bank parameters from file",self.__injlist)
                 else:
                     print("No injection file found, will inject random templates")
                 
@@ -373,6 +381,12 @@ class Generator:
 
             if cmd=='NbB':
                 self.__NbB=int(line[1])
+
+            if cmd=='start':
+                self.__start=int(line[1])
+
+            if cmd=='stop':
+                self.__stop=int(line[1])
 
             if cmd=='step':
                 self.__step=float(line[1])
@@ -429,14 +443,14 @@ class Generator:
                     self.__GrilleMasses[c][1]=self.__mint[0]+j*self.__step
                     c+=1
                     
-        else: # The optimized bank (read from a file, not used for the moment)
+        else: # Read from a text file, not used for the moment
             Mtmp=[]
             Sztmp=[]
-            start=self.__length
-            ntmps=self.__ninj
+            start=self.__start
+            ntmps=self.__stop
             compt=0
-            print("Templates are taken into file ",self.__kindBank)
-            with open(os.path.dirname(__file__)+'/params/'+self.__kindBank) as mon_fichier:
+            print("Templates are taken into file ",self.__injlist)
+            with open(self.__injlist) as mon_fichier:
                 lines=mon_fichier.readlines()
                 for line in lines:
                     if '#' in line:
@@ -516,7 +530,52 @@ class Generator:
                     self.__listSNR2chunks[j][c]=self.__signal._currentSnr[j]
                 c+=1   
         self.__listSNR2chunks=npy.transpose(self.__listSNR2chunks)
-             
+    
+    # This one produces pure signals, and is used for fitting factor calculation only
+
+    def _genSigSet_ff(self):
+
+        self.__Sig=[]
+        self.__Noise=[]
+        c=0
+        
+        # First we produce the object with the correct size
+        # The size is Ntemplate
+        for j in range(self.__nTtot): # Loop over samples
+
+            self.__Sig.append(npy.zeros(self.__Ntemplate,dtype=object))
+            self.__Noise.append(npy.zeros(self.__Ntemplate,dtype=object))
+
+
+        # Now fill the object
+        for i in range(0,self.__Ntemplate):
+
+            if c%10==0:
+                print("Producing sample ",c,"over",self.__Ntemplate)
+            self.__signal.majParams(fast=True,m1=self.__GrilleMasses[i][0],m2=self.__GrilleMasses[i][1],s1z=self.__GrilleSpins[i][0],s2z=self.__GrilleSpins[i][1])
+        
+            # Create the template            
+            temp,freqs=self.__signal.getNewSample(tc=npy.random.uniform(self.__tcint[0],self.__tcint[1]))
+
+            # Fill the corresponding data
+            for j in range(self.__nTtot):
+
+                if (not isinstance(freqs[j],int)):
+
+                    trunc=0
+                    if (len(temp[j])>len(freqs[j])):
+                        trunc=len(temp[j])-len(freqs[j])
+
+                    # Compress the data
+                    self.__Sig[j][c]=compress(list(temp[j][trunc:]), precision=10)
+                    self.__Noise[j][c]=compress(list(freqs[j]), precision=5)
+                else:
+                    self.__Sig[j][c]=0
+                    self.__Noise[j][c]=0
+
+            del temp,freqs            
+            c+=1
+
              
     '''
     GENERATOR 8/
@@ -792,6 +851,9 @@ class Generator:
         # Save the generator object in a pickle without the samples
         self.__Sig=[]
         self.__Noise=[]
+        if self.__rType=='ffactor':
+            self.__signal=[]
+            self.__noise=[]
         fichier=self.__fname+'-'+str(self.__nTtot)+'chunk'+'.p'
         f=open(fichier, mode='wb')
         pickle.dump(self,f)

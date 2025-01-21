@@ -77,6 +77,8 @@ for j in range(nTot):
 
 for i in range(nblocks):
 
+    if i%100==0:
+        print("Dealing with step ",i," of ",nblocks)
     tmpfrm=[]
     finalFrame=[]
     Frameref[0]=sample[0][i*step:i*step+nptsHF] # The temporal realization at max sampling

@@ -49,7 +49,7 @@ for netres in output:
 
     nclust=len(highSigs)
     missflag=0
-    if (netres>0.995): # Interesting value, does it belong to a cluster
+    if (netres>0.9999): # Interesting value, does it belong to a cluster
         if nclust==0: # No cluster yet, create one
             highSigs.append([i])
         else:         # Clusters exist, check is we are in or not
@@ -160,11 +160,16 @@ for clus in clust_truth:
 snr=[]
 width=[]
 dt=[]
+mchirp=[]
 
 for inj in matched_inj:
     snr.append(inj[3])
     width.append(inj[5])
     dt.append(inj[4]-inj[6][2])
+    M=inj[1]+inj[2]                        # Total mass
+    eta=inj[1]*inj[2]/(M**2)        # Reduced mass
+    mchirp.append(npy.power(eta,3./5.)*M) 
+
 
 print("Found",found,"injections out of",len(injections))
 print("Among",len(highSigs),"clusters in total")
@@ -179,6 +184,14 @@ plt.ylabel('Cluster size')
 plt.legend()       
 plt.show()
  
+plt.figure(figsize=(10,5))
+plt.grid(True, which="both", ls="-")
+plt.plot(mchirp,width,'.')
+plt.xlabel('Mchirp')
+plt.ylabel('Cluster size')
+plt.legend()       
+plt.show()
+
 plt.figure(figsize=(10,5))
 plt.hist(dt)
 #plt.xlabel('SNR')

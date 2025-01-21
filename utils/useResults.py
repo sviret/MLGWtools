@@ -358,7 +358,7 @@ class Printer:
         plt.xlabel('SNROpt')
         plt.ylabel('%')
         plt.grid(True, which="both", ls="-")
-        plt.title(label='Sensitivity Vs SNRopt de Test pour un FAR='+str(FAR))
+        plt.title(label='Sensitivity Vs SNRopt pour un FAR='+str(FAR))
         plt.legend()
         
     def plotMultiSensitivity(self,results):

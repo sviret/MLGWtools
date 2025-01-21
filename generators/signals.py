@@ -101,6 +101,8 @@ class GenTemplate:
 
         self.__kindPSD=kindPSD              # PSD type
 
+        self.__zerosp=zerosp
+
         # Parameters related to template SNR sharing
         self._tint=npy.zeros(self.__nTsample)
         self._fint=npy.zeros(self.__nTsample)
@@ -111,6 +113,11 @@ class GenTemplate:
         self._evolSnrFreq = []
         self.__verb=verbose
 
+
+        self.__Noise=gn.Noises(Ttot=self.__Tsample,fe=self.__fe, kindPSD=self.__kindPSD,
+                            fmin=self.__fDmin,fmax=self.__fDmaxd,whitening=self.__whiten,
+                            customPSD=self.__custPSD,verbose=self.__verb)
+        
     '''
     Template 1/10
     
@@ -160,10 +167,10 @@ class GenTemplate:
     We create a noise instance at the end, when the useful length to compute the normalization is known
     '''
 
-    def majParams(self,m1,m2,s1x=0,s2x=0,s1y=0,s2y=0,s1z=0,s2z=0,D=None,Phic=None):
+    def majParams(self,m1,m2,s1x=0,s2x=0,s1y=0,s2y=0,s1z=0,s2z=0,D=None,Phic=None,fast=False):
     
         # Start by updating the main params
-        
+        self.__fast=fast 
         self.__s1x=s1x 
         self.__s2x=s2x
         self.__s1y=s1y 
@@ -201,7 +208,7 @@ class GenTemplate:
         # https://pycbc.org/pycbc/latest/html/pycbc.waveform.html#pycbc.waveform.waveform.get_td_waveform
         #
         
-        if self.__type==0:
+        if self.__type==0 and self.__fast==False:
             
             # The signal starting at frequency fDmin (~Tchirp) ie start at f=0.95fmin
             hp,hq = get_td_waveform(approximant='IMRPhenomTPHM', mass1=self.__m1/Msol,mass2=self.__m2/Msol,delta_t=self.__delta_t,f_lower=self.__fDmin)
@@ -239,6 +246,18 @@ class GenTemplate:
 
             #print(self.__Tblack_start,self.__Tblack)
 
+        else:
+
+            self.__Tchirp=self.__Tsample
+            
+            self.__Tchirpd=self.__Tchirp-0.05 # Apply blackman window to the last 50ms of the frame
+    
+            # Blackman window is defined differently here
+            # Because there is some signal after the merger for those templates
+            
+            self.__Tblack=1. # First second by default
+            self.__Tblack_start=0. # Will be update on demand
+
         # The total length of signal to produce (and total num of samples)
         self.__Ttot=self.__Tchirp+self.__Tdepass
         N=int(self.__Ttot*self.__fe)
@@ -268,9 +287,10 @@ class GenTemplate:
         # Note that we will just use the PSD in frequency domain here, so 
         # this object is relatively CPU-harmless
 
-        self.__Noise=gn.Noises(Ttot=self.__Ttot,fe=self.__fe, kindPSD=self.__kindPSD,
-                            fmin=self.__fDmin,fmax=self.__fDmaxd,whitening=self.__whiten,
-                            customPSD=self.__custPSD,verbose=self.__verb)
+        if self.__fast==False:
+            self.__Noise=gn.Noises(Ttot=self.__Ttot,fe=self.__fe, kindPSD=self.__kindPSD,
+                                fmin=self.__fDmin,fmax=self.__fDmaxd,whitening=self.__whiten,
+                                customPSD=self.__custPSD,verbose=self.__verb)
       
 
         if self.__verb:
@@ -548,6 +568,8 @@ class GenTemplate:
             print(f'MF output value when template is filtered by noise (No angular or antenna effects, D=1Mpc) over the total period is equal to {ropt:.2f}',self.__delta_f)
         self.__norm=ropt
         
+        if self.__fast==True:
+            return self.__norm
 
         # Here we compute the rhoOpt**2 share per frequency bin (put the right norm for PSD here)
         self._evolSnr_f = (2/(self.__norm**2)*self.__Sfn[ifmin:ifmax]*npy.conjugate(self.__Sfn[ifmin:ifmax])/(Noise.PSD[ifmin:ifmax]/self.__delta_f)).real
@@ -710,14 +732,14 @@ class GenTemplate:
         
         
         #Run the FIR filter
-        #self.__St_filt_ZL = (signal.filtfilt(Noise.whitener_MP,1,self.__Stblack))*Noise.nf*npy.sqrt(self.__delta_t)/rho
-        self.__St_filt_ZL = (signal.lfilter(self.__Noise.whitener_MP,1,self.__Stblack))*self.__Noise.nf*npy.sqrt(self.__delta_t)/rho
+        #self.__St_filt_ZL = (signal.filtfilt(Noise.whitener_MP,1,self.__Stblack))*Noise.nf*npy.sqrt(self.__delta_t)/rho        
         #self.__St_filt = (signal.lfilter(Noise.whitener,1,tmp))*Noise.nf*npy.sqrt(self.__delta_t)/rho
         #self.__St_filt = (signal.lfilter(Noise.whitener,1,tmp))*Noise.nf/(rho*npy.sqrt(self.__N))
         #self.__St_filt = (signal.lfilter(Noise.whitener_MP*Noise.nf,1,self.__Stblack))
         #self.__St_filt = (signal.lfilter(Noise.whitener_MP,1,scipy.fft.ifft(self.__Sf,norm='ortho').real))
         
         if self.__whiten==2:
+            self.__St_filt_ZL = (signal.lfilter(self.__Noise.whitener_MP,1,self.__Stblack))*self.__Noise.nf*npy.sqrt(self.__delta_t)/rho
             self.__St=self.__St_filt_ZL
         
 
