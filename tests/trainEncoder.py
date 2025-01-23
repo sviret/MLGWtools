@@ -4,6 +4,7 @@ Macro showing the training of the CNN-LSTM standard autoencoder
 
 from MLGWtools.networks import utils as tn
 from MLGWtools.networks import LSTM as encoder
+from MLGWtools.networks import Liquid as encoder
 from MLGWtools.utils import useResults as ur
 import argparse
 
@@ -22,14 +23,15 @@ The main training macro starts here
 # Initialisation
 args = parse_cmd_line()
 trainer=tn.trutils(paramFile=args.param)
-net=encoder.CNN_LSTM(trainer)
-
+#net=encoder.CNN_LSTM(trainer)
+net=encoder.CNN_Liquid(trainer)
 # Instantiate the network architecture
 
 # The main network of the Chatterjee et al paper
 # https://arxiv.org/abs/2105.03073
 
-net.LSTM_denoiser(LSTM_layers=2,LSTM_neurons=50)
+#net.LSTM_denoiser(LSTM_layers=2,LSTM_neurons=50)
+net.Liquid_denoiser()
 
 # Note that you can modify you can define LSTM decoding architecture
 # LSTM_layers : number of bidirectional LSTM layers (3 in the paper)
