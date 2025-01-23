@@ -42,17 +42,24 @@ args = parse_cmd_line()
 f=open(args.network,mode='rb')
 net=pickle.load(f)
 f.close()
+struct=net[0]
+model=net[1]
 
-npts=net.getNetSize()      # Number of points fed to the network for each block
-step=int(net.getStepSize())# Step between two blocks
-fs=float(net.getfs())      # Sampling freq
-nTot=int(net.getNband())   # Number of bands
-listFe=net.getListFe()     # List of sampling freqs
-listTtot=net.getListTtot() # List of frame sizes
-tTot=net.getBlockLength()  # Total length of a block
+fs=float(max(struct[1]))      # Sampling freq
+nTot=int(len(struct[0]))   # Number of bands
+listFe=struct[1]     # List of sampling freqs
+listTtot=struct[0] # List of frame sizes
+tTot=sum(listTtot)  # Total length of a block
 nptsHF=int(tTot*fs)        # Size of a block in the original frame
 
+# The number of data points for each band is retrieved
 
+npts=0      # Number of points fed to the network for each block
+for x in range(nTot):
+    npts+=int(listTtot[x]*listFe[x])
+step=npts # Default step between two blocks
+
+print(fs,tTot,nptsHF)
 
 # 3. Trained network is loaded, now load the data data
 
@@ -64,6 +71,7 @@ injections=inputFrame.getTruth()
 
 
 step=int(float(args.step)*fs) 
+print(len(sample[0]),step)
 nblocks=int(len(sample[0])/step) # Number of steps necessary to analyze the frame
 
 output=[]
@@ -124,7 +132,7 @@ for i in range(nblocks):
         cut_bottom = cut_top
         
     # We feed the network
-    res = usoftmax_f(net.model.predict(list_inputs_val,verbose=0))
+    res = usoftmax_f(model.predict(list_inputs_val,verbose=0))
 
     # Recover the probability to get a signal
     out=tf.keras.backend.get_value(res.T[1])[0]
@@ -136,6 +144,7 @@ for i in range(nblocks):
 
         print("Potential signal at t=",t_hit,out)
         for inj in injections:
+            print(inj)
             if npy.abs(inj[4]-t_hit)<1.:
                 print("!Match injection:",inj)
                 break

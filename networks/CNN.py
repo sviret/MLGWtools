@@ -336,16 +336,17 @@ class Multiple_CNN():
     # Here we save the network info
 
     def save(self):
-        fichier='network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-1.h5'
-        fichier_js='network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-1_fullnet.p'
+        fichier='CNN_network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-1.h5'
+        fichier_js='CNN_network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-1_fullnet.p'
         c=1
         while os.path.isfile(fichier):
             c+=1
-            fichier='network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-'+str(c)+'.h5'
-            fichier_js='network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-'+str(c)+'_fullnet.p'
+            fichier='CNN_network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-'+str(c)+'.h5'
+            fichier_js='CNN_network-'+self.__kindTraining+'-'+str(self.__lr)+'-net-'+str(c)+'_fullnet.p'
         self.model.save(fichier)
         f=open(fichier_js, mode='wb')
-        pickle.dump(self,f)
+        pickle.dump([self.__netinfo,self.model],f)
+        #pickle.dump(,f)
         f.close()
         self.model=None
         

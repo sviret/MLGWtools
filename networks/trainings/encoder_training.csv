@@ -1,0 +1,14 @@
+batch_size,100
+lr,0.008
+kindTraining,Int
+tabEpochs,10
+tabSNR,34,8
+
+training_size,1000
+
+
+# Name of the training/testing samples files
+# It will be checked but they have to contain the same 
+# type of datas 
+trainSample,trainGen_Encoder_params-1chunk.p
+testSample,testGen_Encoder_params-1chunk.p

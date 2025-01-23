@@ -35,13 +35,13 @@ def main():
     net=pickle.load(f)
     f.close()
 
-    net.printinfo()
+    
 
     # get the file name
     netname=((args.network).split("/")[-1]).split(".p")[0]
 
     # and the network object
-    model=net.model
+    model=net[1].model
 
     n_mult=0
     n_add=0

@@ -1,0 +1,11 @@
+runType,bank
+Ttot,1.
+fe,1024
+kindPSD,analytic,
+mint,20.5,75.5
+tcint,0.98,0.99
+NbB,2,
+kindTemplate,EOB,
+kindBank,linear,
+step,1.,
+whitening,1,
