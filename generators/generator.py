@@ -239,6 +239,12 @@ class Generator:
                                  fmin=self.__fmin,fmax=self.__fmax,whitening=self.__white,
                                  verbose=self.__verb,customPSD=self.__custPSD)
 
+    def initTemplate_TD(self,length):
+        self.__signal = gt.GenTemplate(Ttot=length,fe=self.__listfe,kindPSD=self.__kindPSD,
+                                 kindTemplate=self.__kindTemplate,
+                                 fmin=self.__fmin,fmax=self.__fmax,whitening=self.__white,
+                                 verbose=self.__verb,customPSD=self.__custPSD)
+
     def getTemplate(self):
         return self.__signal
  
@@ -788,7 +794,26 @@ class Generator:
         fpset=npy.asarray(pset[0])
 
         return fdset, list_weights, fpset
-    
+
+
+    def getrawFrame(self,det=0):
+        nbands=self.__nTtot
+        dset=[]
+        fdset = []
+        pset=[]
+        fpset = []
+        
+        list_weights=self.__listSNR2chunks
+        
+        print("Getting a raw frame which will be analyzed with",nbands,"frequency bands")
+
+        dset.append(self.__Noise[det][1])
+        pset.append(self.__Signal[det][1])
+
+        fdset=npy.asarray(dset[0])
+        fpset=npy.asarray(pset[0])
+
+        return fdset, list_weights, fpset
     
     '''
     GENERATOR 11/

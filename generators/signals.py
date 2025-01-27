@@ -823,6 +823,10 @@ class GenTemplate:
         if isinstance(Tsample,list):
             Tsample=sum(Tsample)
     
+        if Tsample>self.__Ttot:
+            Tsample=self.__Ttot
+
+
         if kindPSD!='flat' and kindPSD!='analytic' and kindPSD!='realistic' and kindPSD!=None:
             raise ValueError("Les seules valeurs autorisées sont None, 'flat', et 'analytic'")
         
@@ -840,7 +844,6 @@ class GenTemplate:
             self._whitening(kindPSD,Tsample,norm)
 
         # We will shift the initial data by itc (but keep it in the last block)
-        tc=Tsample+(tc-1.)*self.__listTsample[0]
         S=npy.zeros(len(self.__St)) 
         F=npy.zeros(len(self.__St)) 
         itc=int(tc/self.__delta_t) 
@@ -848,7 +851,6 @@ class GenTemplate:
         # St contains the complete frame, so can be longer than S,
         # which is the required data section
 
-        #print(itc,len(S),len(self.__St),Tsample,tc,self.__Ttot)
         if tc<=self.__Ttot:
             S[:itc]=self.__St[-itc:] # There will be 0s at the start
             F[:itc]=self.__Stfreqs[-itc:] # There will be 0s at the start
@@ -873,8 +875,11 @@ class GenTemplate:
         if isinstance(Tsample,list):
             Tsample=sum(Tsample)
     
+        if Tsample>self.__Ttot:
+            Tsample=self.__Ttot
+
         if tc==None:
-            tc=0.95
+            tc=0.99
 
 
         # We will shift the initial data by itc (but keep it in the last block)

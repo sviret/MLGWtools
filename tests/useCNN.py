@@ -67,6 +67,7 @@ test=gd.Generator('nothing')
 inputFrame=test.readFrame(args.framefile)
     
 sample=inputFrame.getFrame()
+#sample=inputFrame.getrawFrame()
 injections=inputFrame.getTruth()
 
 
