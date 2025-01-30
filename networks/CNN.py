@@ -138,6 +138,66 @@ class Multiple_CNN():
         # Print the network
         print(self.model.summary())
 
+
+    def huerta_deep(self):
+
+        self.inputs=[]
+        self.outputs=[]
+
+        print("Initialize the deeper Huerta-George CNN network")
+
+        with tf.name_scope('simpleCNN') as scope:
+            for i in range(self.__nbands):
+                input=layers.Input(shape=(int(self.list_chunks[i]),1))
+                x=layers.BatchNormalization()(input)
+                x=layers.Conv1D(filters=16, kernel_size=4, kernel_initializer=self.__initializer)(x)
+                x=layers.MaxPool1D(pool_size=4)(x)
+                x=layers.Activation(activation='relu')(x)
+                x=layers.Conv1D(filters=32, kernel_size=4, dilation_rate=2,  kernel_initializer=self.__initializer)(x)
+                x=layers.MaxPool1D(pool_size=4)(x)
+                x=layers.Activation(activation='relu')(x)
+                x=layers.Conv1D(filters=64, kernel_size=4, dilation_rate=2, kernel_initializer=self.__initializer)(x)
+                x=layers.MaxPool1D(pool_size=4)(x)
+                x=layers.Activation(activation='relu')(x)
+                x=layers.Conv1D(filters=128, kernel_size=8, dilation_rate=2, kernel_initializer=self.__initializer)(x)
+                x=layers.MaxPool1D(pool_size=4)(x)
+                x=layers.Activation(activation='relu')(x)
+                x=layers.Flatten()(x)
+                x=layers.Dense(32, kernel_initializer=self.__initializer)(x)
+                x=layers.Activation(activation='relu')(x)
+                x=layers.Dense(16, kernel_initializer=self.__initializer)(x)
+                x=layers.Activation(activation='relu')(x)
+                output=layers.Dense(2, kernel_initializer=self.__initializer)(x)
+                
+                self.inputs.append(input)
+
+                # Don't use the weighting for the moment
+                #self.outputs.append(weight[i]*output)
+                self.outputs.append(output)
+
+        # The last layer is a dense one which takes as input a weighted average of all the networks outputs
+        # The weighting from each layer is defined later.
+
+        # Take note that there is no activation in the last dense layer
+        # softmax activation is included in the loss function (via from_logits option)
+        # enable to use the special activation function defined in https://arxiv.org/abs/2106.03741
+        #
+
+        x = layers.add(self.outputs)
+        if not self.singleBand: # merge the bands if > 1
+            self.out = layers.Dense(2, kernel_initializer=self.__initializer)(x)
+        else:
+            self.out = self.outputs
+        self.model = models.Model(self.inputs, self.out)
+        
+        # Init the model
+        self.model.compile(optimizer=self.__opt,loss=self.__loss,metrics=['accuracy'])
+                
+        # Print the network
+        print(self.model.summary())
+
+
+
     '''
     This net is a version optimised for the hardware implementation
     '''
