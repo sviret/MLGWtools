@@ -118,7 +118,7 @@ f=open("network_output.p", mode='wb')
 pickle.dump([squashed_sig,injections,nptsHF,step,output_sig,output_noise],f)
 f.close()
 
-plt.plot(npy.arange(len(output_sig))*step/fs+nptsHF/(2*fs), output_sig,'.')  # Network output
-plt.plot(npy.arange(len(output_sig))*step/fs+nptsHF/(2*fs), squashed_sig,'.')  # Network output
-plt.plot(npy.arange(len(output_noise))*step/fs+nptsHF/(2*fs), output_noise,'.')  # Network output
+plt.plot(npy.arange(len(output_sig))*step/fs+nptsHF/(2*fs), output_sig,'.',label='signal cat')  # Network output
+plt.plot(npy.arange(len(output_noise))*step/fs+nptsHF/(2*fs), output_noise,'.',label='noise cat')  # Network output
+plt.legend()
 plt.show()
