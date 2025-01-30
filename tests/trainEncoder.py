@@ -32,7 +32,7 @@ net=encoder_LSTM.CNN_LSTM(trainer)
 # The main network of the Chatterjee et al paper
 # https://arxiv.org/abs/2105.03073
 
-net.LSTM_denoiser(LSTM_layers=2,LSTM_neurons=50)
+net.LSTM_denoiser(LSTM_layers=3,LSTM_neurons=50)
 #net.Liquid_denoiser()
 #net_LTC.LTC_denoiser()
 
@@ -47,5 +47,5 @@ results=ur.Results(SNRtest=10) # This file will contain the results of the train
 trainer.train_denoiser(net,results=results)
 
 # Save the results
-#net_LTC.save()
+net.save()
 #results.saveResults()

@@ -75,83 +75,104 @@ step=int(float(args.step)*fs)
 print(len(sample[0]),step)
 nblocks=int(len(sample[0])/step) # Number of steps necessary to analyze the frame
 
-output=[]
+
+output_sig=npy.zeros(nblocks)   # The output of the signal category before activation
+output_noise=npy.zeros(nblocks) # The output of the noise category before activation
+squashed_sig=npy.zeros(nblocks) # The output of the signal category after activation
+
 Frameref=[]
 
 for j in range(nTot):
     Frameref.append([]) 
 
-# 4. Loop over frames to perform the inference
 
-for i in range(nblocks):
+# 4. Loop over subframes to perform the inference
 
-    if i%100==0:
-        print("Dealing with step ",i," of ",nblocks)
-    tmpfrm=[]
-    finalFrame=[]
-    Frameref[0]=sample[0][i*step:i*step+nptsHF] # The temporal realization at max sampling
-    ref=Frameref[0]
-    # ref contains the chunck of data we will provide to the network
-    # we need to reformat it a bit 
+# In order to increase the speed we will pass batch of subframes to the model
+batch_size=5000 
+
+for i in range(0,nblocks,batch_size):
+
+    if i+batch_size>nblocks:
+        batch_size=int(nblocks%batch_size-1) # The last batch can be smaller
+    if i%10000==0:
+        print("Dealing with inference ",i," of ",nblocks)
+
+    databatch=[]
+    # create the batch
+    for j in range(batch_size):
+
+        tmpfrm=[]
+        finalFrame=[]
+        Frameref[0]=sample[0][(i+j)*step:(i+j)*step+nptsHF] # The temporal realization at max sampling
+        ref=Frameref[0]
+        # ref contains the chunck of data we will provide to the network
+        # we need to reformat it a bit 
      
-    for j in range(nTot): # Resample the block (particularly true for multibanding)
+        for k in range(nTot): # Resample the block (particularly true for multibanding)
                             
-        #Pick up the number of samples in chunk j
+            #Pick up the number of samples in chunk j
 
-        ndatapts=int(listTtot[j]*fs)
-        nttt=len(ref)
+            ndatapts=int(listTtot[k]*fs)
+            nttt=len(ref)
             
-        # Nt contains chunk j
-        Nt=ref[-ndatapts:]
-        # We remove the chunk from ref
-        ref=ref[:nttt-ndatapts]
-        # We resample Nt to the correct sampling frequency
-        decimate=int(fs/listFe[j])
-        Frameref[j]=Nt[::int(decimate)]
-        # Add it to a temporary frame
-        tmpfrm.append(npy.asarray(Frameref[j]))
+            # Nt contains chunk k
+            Nt=ref[-ndatapts:]
+            # We remove the chunk from ref
+            ref=ref[:nttt-ndatapts]
+            # We resample Nt to the correct sampling frequency
+            decimate=int(fs/listFe[k])
+            Frameref[k]=Nt[::int(decimate)]
+            # Add it to a temporary frame
+            tmpfrm.append(npy.asarray(Frameref[k]))
     
-    # resampledFrame is a 1D vector containing the data points at the correct 
-    # sampling freq for ech chunk. This is what we will feed to the network
-    resampledFrame=npy.concatenate(tmpfrm)
-    # Some formatting steps for TFlow compliance
-    finalFrame.append(resampledFrame)
-    fFrame=npy.asarray(finalFrame)
-    data=npy.array(fFrame.reshape(1,-1,1),dtype=npy.float32)
+        # resampledFrame is a 1D vector containing the data points at the correct 
+        # sampling freq for ech chunk. This is what we will feed to the network
+        resampledFrame=npy.concatenate(tmpfrm)
+        # Some formatting steps for TFlow compliance
+        finalFrame.append(resampledFrame)
+        fFrame=npy.asarray(finalFrame)
+        data=npy.array(fFrame.reshape(1,-1,1),dtype=npy.float32)
 
-    if data.shape[1]<npts: # Safety cut at the end
-        break
-        
+        if data.shape[1]<npts: # Safety cut at the end
+            break
+        databatch.append(fFrame)
+
     cut_top = 0
     cut_bottom = 0
     list_inputs_val=[]
-                    
+
+    databatch=npy.asarray(databatch)
+    databatch=npy.array(databatch.reshape(len(databatch),-1,1))
+    #print(databatch.shape)
     for k in range(nTot):
         cut_top += int(listTtot[k]*fs)
-        list_inputs_val.append(data[:,cut_bottom:cut_top,:])
+        list_inputs_val.append(databatch[:,cut_bottom:cut_top,:])
         cut_bottom = cut_top
-        
-    # We feed the network
-    res = usoftmax_f(model.predict(list_inputs_val,verbose=0))
+    #print(npy.asarray(list_inputs_val).shape)
+      
+    # We feed the network and recover the raw net output for this batch
+    
+    res  = model.predict(list_inputs_val,verbose=0)
+    sres = usoftmax_f(res) # Normalize it
 
-    # Recover the probability to get a signal
-    out=tf.keras.backend.get_value(res.T[1])[0]
-    output.append(out)
-        
-finalres=npy.array(output)
+    # Transform the keras tensor in human readable info
+    output_sig[i:i+len(databatch)]=tf.keras.backend.get_value(res.T[1])[:]
+    output_noise[i:i+len(databatch)]=tf.keras.backend.get_value(res.T[0])[:]
+    squashed_sig[i:i+len(databatch)]=tf.keras.backend.get_value(sres.T[1])[:]
 
-# Inference is completed, output of the network is stored in vector output
+
+
+
+# Inference is completed, output of the network is stored in vectors 
 # Save the results
 
 f=open("network_output.p", mode='wb')        
-pickle.dump([finalres,injections,nptsHF,step],f)
+pickle.dump([squashed_sig,injections,nptsHF,step,output_sig,output_noise],f)
 f.close()
- 
 
-plot1 = plt.subplot2grid((3, 1), (0, 0), rowspan = 2)
-plot2 = plt.subplot2grid((3, 1), (2, 0))
-    
-plot1.plot(npy.arange(len(sample[0]))/fs, sample[0],'.')   # Input data
-plot2.plot(npy.arange(len(finalres))*step/fs, finalres,'.')  # Network output
-plt.tight_layout()
-plt.show()
+plt.plot(npy.arange(len(output_sig))*step/fs+nptsHF/(2*fs), output_sig,'.',label='signal cat')  # Network output
+plt.plot(npy.arange(len(output_noise))*step/fs+nptsHF/(2*fs), output_noise,'.',label='noise cat')  # Network output
+plt.legend()
+plt.show()      
+       

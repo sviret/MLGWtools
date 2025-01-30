@@ -28,7 +28,8 @@ net=cnn.Multiple_CNN(trainer)
 # Instantiate the network architecture
 
 # The main network of the Huerta and George paper (the small one)
-net.huerta_deep()
+#net.huerta_legacy()
+net.fpga_version()
 
 # Here you can define your custom autoencoder
 # Providing the number of CONV layers, along with their properties:
