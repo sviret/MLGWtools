@@ -3,13 +3,13 @@ runType,template
 
 # The time (and sampling frequency) over which you want to produce 
 # the template. Multibanding is possible here (see noise2b.csv for definition)
-Ttot,2.
-fe,4096
+Ttot,10.
+fe,2048
 
 # Type of noise, frequency range and whitening options (see noise.csv)
 kindPSD,analytic,
 whitening,1,
-flims,10.,1024.
+flims,15.,1024.
 
 # Template type
 # Three possibilities here:

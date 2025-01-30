@@ -76,7 +76,6 @@ print(len(sample[0]),step)
 nblocks=int(len(sample[0])/step) # Number of steps necessary to analyze the frame
 
 output=[]
-output_S=[]
 Frameref=[]
 
 for j in range(nTot):
@@ -138,22 +137,8 @@ for i in range(nblocks):
     # Recover the probability to get a signal
     out=tf.keras.backend.get_value(res.T[1])[0]
     output.append(out)
-
-    if (out>0.999):
-        output_S.append(out)
-        t_hit=(i*step+nptsHF)*(1/fs)
-
-        print("Potential signal at t=",t_hit,out)
-        for inj in injections:
-            print(inj)
-            if npy.abs(inj[4]-t_hit)<1.:
-                print("!Match injection:",inj)
-                break
-    else:
-        output_S.append(0.)
         
 finalres=npy.array(output)
-finalres_S=npy.array(output_S)
 
 # Inference is completed, output of the network is stored in vector output
 # Save the results
@@ -163,13 +148,10 @@ pickle.dump([finalres,injections,nptsHF,step],f)
 f.close()
  
 
-
 plot1 = plt.subplot2grid((3, 1), (0, 0), rowspan = 2)
 plot2 = plt.subplot2grid((3, 1), (2, 0))
     
-plot1.plot(npy.arange(len(sample[0]))/fs, sample[0],'.')
-plot1.plot(npy.arange(len(sample[0]))/fs, sample[2],'.')
-plot2.plot(npy.arange(len(finalres))*step/fs, finalres,'.')
-plot2.plot(npy.arange(len(finalres))*step/fs, finalres_S,'.')
+plot1.plot(npy.arange(len(sample[0]))/fs, sample[0],'.')   # Input data
+plot2.plot(npy.arange(len(finalres))*step/fs, finalres,'.')  # Network output
 plt.tight_layout()
 plt.show()

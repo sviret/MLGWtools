@@ -41,8 +41,7 @@ def main():
     netname=((args.network).split("/")[-1]).split(".p")[0]
 
     # and the network object
-    model=net[1].model
-
+    model=net[1]
     n_mult=0
     n_add=0
 
