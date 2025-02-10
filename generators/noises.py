@@ -189,45 +189,45 @@ class Noises:
 
         self.__invPSD=npy.sqrt(1./npy.abs(self.__PSD)) # Stay single sided here
 
-        if self.__whiten<=1:
-            freqs=self.__Fnorm[0:self.__N//2]
-            ampl=self.__invPSD[0:self.__N//2]
-            for i in range(len(ampl)):
-                if ampl[i]<=1.5: # Safety check to avoid rounding issues
-                    ampl[i]=0.
-            freqs[self.__N//2-1]=1.
-            ampl[self.__N//2-1]=0.
-            self.__nf=ampl.max()
-            normamp=ampl/ampl.max()
-            self.__whitener = signal.firwin2(self.__N//2, freqs, normamp)
-            self.__whitener_MP = signal.minimum_phase(signal.firwin2(self.__N//2, freqs, normamp**2), method='hilbert',n_fft=10*self.__N)
+        freqs=self.__Fnorm[0:self.__N//2]
+        ampl=self.__invPSD[0:self.__N//2]
+        for i in range(len(ampl)):
+            if ampl[i]<=1.5: # Safety check to avoid rounding issues
+                ampl[i]=0.
+        freqs[self.__N//2-1]=1.
+        ampl[self.__N//2-1]=0.
+        self.__nf=ampl.max()
+        normamp=ampl/ampl.max()
+        self.__whitener = signal.firwin2(self.__N//2, freqs, normamp)
+        self.__whitener_MP = signal.minimum_phase(signal.firwin2(self.__N//2, freqs, normamp**2), method='hilbert',n_fft=10*self.__N)
 
-            if self.__verb:
 
-                tmp = npy.zeros(len(self.__whitener))
-                tmp[:len(self.__whitener_MP)]=self.__whitener_MP
+        if self.__verb:
+
+            tmp = npy.zeros(len(self.__whitener))
+            tmp[:len(self.__whitener_MP)]=self.__whitener_MP
         
-                w, h = signal.freqz(self.__whitener)
-                w2, h2 = signal.freqz(self.__whitener_MP)
+            w, h = signal.freqz(self.__whitener)
+            w2, h2 = signal.freqz(self.__whitener_MP)
 
-                plt.title('Digital filter amplitude (FD) ')
-                plt.plot(w/npy.pi, npy.abs(h),label="Basic FIR filter")
-                plt.plot(freqs, normamp,label="Reference (Inv. PSD)")
-                plt.plot(w2/npy.pi, npy.abs(h2),label="Zero-latency FIR filter")
-                plt.title('Digital filter frequency response')
-                plt.ylabel('Normalized amplitude')
-                plt.xlabel('Normalized frequency')
-                plt.legend()
-                plt.grid()
-                plt.show()
-                plt.title('Digital filter phase (FD)')
-                plt.plot(w, npy.unwrap(npy.angle(h,deg=True)),label="Basic FIR filter")
-                plt.plot(w2, npy.unwrap(npy.angle(h2,deg=True)),label="Zero-latency FIR filter")
-                plt.title('Digital filter frequency response')
-                plt.ylabel('Phase shift')
-                plt.xlabel('Normalized frequency')
-                plt.grid()
-                plt.show()
+            plt.title('Digital filter amplitude (FD) ')
+            plt.plot(w/npy.pi, npy.abs(h),label="Basic FIR filter")
+            plt.plot(freqs, normamp,label="Reference (Inv. PSD)")
+            plt.plot(w2/npy.pi, npy.abs(h2),label="Zero-latency FIR filter")
+            plt.title('Digital filter frequency response')
+            plt.ylabel('Normalized amplitude')
+            plt.xlabel('Normalized frequency')
+            plt.legend()
+            plt.grid()
+            plt.show()
+            plt.title('Digital filter phase (FD)')
+            plt.plot(w, npy.unwrap(npy.angle(h,deg=True)),label="Basic FIR filter")
+            plt.plot(w2, npy.unwrap(npy.angle(h2,deg=True)),label="Zero-latency FIR filter")
+            plt.title('Digital filter frequency response')
+            plt.ylabel('Phase shift')
+            plt.xlabel('Normalized frequency')
+            plt.grid()
+            plt.show()
         
         
     '''
