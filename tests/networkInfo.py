@@ -1,8 +1,9 @@
 import numpy as npy
-import pickle
+#import pickle
 from tensorflow.keras.utils import plot_model
 npy.set_printoptions(threshold=npy.inf)
-
+from keras.models import load_model
+import h5py
 
 '''
 Print some info about the network and its training
@@ -31,17 +32,12 @@ def main():
     args = parse_cmd_line()
                 
     # 2. Then retrieve the network and initialize it
-    f=open(args.network,mode='rb')
-    net=pickle.load(f)
-    f.close()
-
-    
 
     # get the file name
     netname=((args.network).split("/")[-1]).split(".p")[0]
 
     # and the network object
-    model=net[1]
+    model=load_model(args.network)
     n_mult=0
     n_add=0
 
