@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import os
 import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mpl
 
@@ -25,18 +26,23 @@ def accuracy(yhat,N,seuil=0.5):
 
 def sensitivity(yhat,N,seuil=0.5):
     #superieur au seuil
+    #print((yhat[::2].T[1].astype(np.float32)*np.ones(N//2)).mean(),seuil)
+
     return ((yhat[::2].T[1].astype(np.float32)>=seuil)*np.ones(N//2)).mean()
 
 def FAR(yhat,N,seuil=0.5):
     return 1-((yhat[1::2].T[0].astype(np.float32)<seuil)*np.ones(N//2)).mean()
 
 def Threshold(yhat,N,FAR=0.005):
-    l=np.sort(yhat[1::2].T[1]) # Proba d'être signal assignée au bruit
+    l=np.sort(yhat[1::2].T[1]) # Noise output val in the signal category, sorted
+    
     ind=len(l)-int(np.floor(FAR*(N//2)))
-    if ind==0:
+    #print(ind)
+    if ind==N//2:
         print('Sample is too small to define a threshold with FAP',FAR)
-        ind=1
-    seuil=l[ind-1]
+        ind=N//2-1
+    seuil=l[ind]
+
     return seuil
 
 '''
@@ -256,17 +262,15 @@ class Printer:
         self.__nbROC=0
         self.__nbSens=0
 
-    def plotResults(self,results,FAR=0.005):
-
+    def plotResults(self, results, FAR=0.005):
         nrecorded=len(results[2])
         for i in range(nrecorded):
             self.plotDistrib(results,i,FAR=FAR)
             self.plotMapDistrib(results,i)
+            self.plotROC2(results,i)
         self.plotROC(results,FAR=FAR)
         self.plotSensitivity(results,FAR=FAR)
         self.plotMultiSensitivity(results)
-
-
 
     def plotDistrib(self,result,epoch,FAR=0.005):
         self.__nbDist+=1
@@ -341,17 +345,63 @@ class Printer:
         plt.xlabel('Epochs')
         plt.legend()
 
+    def plotROC2(self, result, epoch):
+        """Plots the ROC curve and computes AUROC using the same softmax data as the softmax plots."""
+    
+        self.__nbROC += 1 
 
-    def plotSensitivity(self,results,FAR=0.005):
+        data = result[2][epoch]
+    
+        if data is None or len(data) == 0:
+            print(f"Skipping ROC plot for epoch {epoch}: No stored outputs.")
+            return
+
+        # Get softmax probabilities for signal classification
+        y_scores = data[:, 1].numpy()  # Second column corresponds to P(signal)
+
+        num_samples = len(y_scores)
+        y_true = np.array([1 if i % 2 == 0 else 0 for i in range(num_samples)])
+
+        fpr, tpr, _ = roc_curve(y_true, y_scores)
+        auroc = auc(fpr, tpr)
+
+        plt.figure(f'ROC_epoch{epoch}_{self.__nbROC}')
+        plt.plot(fpr, tpr, label=f'AUROC = {auroc:.3f}', linewidth=2)
+        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title(f'ROC Curve - Epoch {epoch}')
+        plt.legend()
+        plt.grid()
+
+        print(f"Generated ROC plot for epoch {epoch} with AUROC = {auroc:.3f}")
+
+ 
+    def plotSensitivity(self,results,FAR=0.5):
         self.__nbSens+=1
         plt.figure('Sensitivity_Vs_SNRtest-'+str(self.__nbSens))
         
         SNRlist=results[0]
-        
+        print(SNRlist)
         Sensitivitylist=[]
+
+        #
+        # Here we determine the value of threshold 
+        # We take all the noise outputs in signal cat, order them
+        # and get the value of the FAR*Ntot-th 
+        #
+
+        threshval=np.concatenate(results[1],0)
+        N=len(threshval)
+        seuil=Threshold(threshval,N,FAR)
+        #print(N,seuil)
+
         for yhat in results[1]:
+
+
             N=len(yhat)
-            seuil=Threshold(yhat,N,FAR)
+            #seuil=Threshold(yhat,N,FAR)
+            #print(len(yhat),seuil)
             Sensitivitylist.append(100*sensitivity(yhat,N,seuil))                        
 
         plt.plot(SNRlist,Sensitivitylist,'.-',label='Sensitivity')
@@ -366,14 +416,27 @@ class Printer:
         plt.figure('Sensitivity_Vs_SNRtest-'+str(self.__nbSens))
                
         SNRlist=results[0]
+        threshval=np.concatenate(results[1],0)
         
+
         for i in range(4):
             Sensitivitylist=[]
-            
+
+            #
+            # Here we determine the value of threshold 
+            # We take all the noise outputs in signal cat, order them
+            # and get the value of the FAR*Ntot-th 
+            #
+
+            FAR=10**(-float(i+1))
+            N=len(threshval)
+            seuil=Threshold(threshval,N,FAR)
+            #print(N,seuil)
+
             for yhat in results[1]:
-                FAR=10**(-float(i+1))
+                
                 N=len(yhat)
-                seuil=Threshold(yhat,N,FAR)
+                #seuil=Threshold(yhat,N,FAR)
                 Sensitivitylist.append(100*sensitivity(yhat,N,seuil))   
            
             plt.plot(SNRlist,Sensitivitylist,'.-',label='FAP='+str(FAR))
