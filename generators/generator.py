@@ -109,7 +109,8 @@ class Generator:
                 m2=npy.random.uniform(5,75)
                 self.__signal.majParams(m1,m2)
 
-            SNR=npy.random.uniform(5,50)
+            SNR=npy.random.uniform(6,12)
+            #SNR=npy.random.uniform(4,40)
 
             self.__signal.getNewSample(Tsample=self.__signal.gensignal())
             data=self.__signal.signal()        # Whitened and normalised to SNR**2=1
@@ -453,34 +454,51 @@ class Generator:
             Mtmp=[]
             Sztmp=[]
             start=self.__start
-            ntmps=self.__stop
+            ntmps=self.__ninj
             compt=0
+            nlines=0
             print("Templates are taken into file ",self.__injlist)
+
+            inj_or_tmpl=0
             with open(self.__injlist) as mon_fichier:
                 lines=mon_fichier.readlines()
                 for line in lines:
+                    if 'chip' in line:
+                        compt=0
+                        inj_or_tmpl=1 # Format of the injections
+                        continue
                     if '#' in line:
                         compt=0
                         continue
                     if '!' in line:
                         compt=0
                         continue
-                    if compt>=start+ntmps:
-                        break
-                    if compt<start:
-                        compt+=1
+
+                    nlines+=1
+                    if nlines<=start:
                         continue
 
+                    if compt>=ntmps:
+                        break
+
+
+      
                     data=line.strip()
                     pars=data.split(' ')
+                    if len(pars)<3:
+                        pars=data.split(',')
                     # Cuts on total mass
                     if (float(pars[1])+float(pars[2])<self.__mint[0] and float(pars[1])+float(pars[2])>self.__mint[0]):
-                        self.__tmplist.append([float(pars[0]),float(pars[1]),float(pars[2]),0])
-                        compt+=1
+                        #self.__tmplist.append([float(pars[0]),float(pars[1]),float(pars[2]),0])
+                        #compt+=1
                         continue
                     compt+=1
                     Mtmp.append([float(pars[1]),float(pars[2])])
-                    Sztmp.append([float(pars[3]),float(pars[4])])
+                    if inj_or_tmpl==1:
+                        Sztmp.append([float(pars[5]),float(pars[8])])
+                    else:
+                        Sztmp.append([float(pars[3]),float(pars[4])])
+
                     self.__tmplist.append([float(pars[0]),float(pars[1]),float(pars[2]),1])
             M=npy.asarray(Mtmp)
             Spins=npy.asarray(Sztmp)

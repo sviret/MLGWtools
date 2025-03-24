@@ -51,8 +51,8 @@ class GenTemplate:
     
         if not(isinstance(kindTemplate,str)):
             raise TypeError("kindTemplate doit être de type str")
-        if kindTemplate!='EM' and kindTemplate!='EOB' and kindTemplate!='IMRPhenom':
-            raise ValueError("Les seules valeurs autorisées pour kindTemplate sont 'EM','EOB', et 'IMRPhenom'")
+        if kindTemplate!='EM' and kindTemplate!='EOB' and kindTemplate!='IMRPhenomTPHM':
+            raise ValueError("Les seules valeurs autorisées pour kindTemplate sont 'EM','EOB', et 'IMRPhenomTPHM'")
         
         self.__zerosp=zerosp # Zero-suppression 
         self.__type=1
@@ -101,7 +101,7 @@ class GenTemplate:
 
         self.__kindPSD=kindPSD              # PSD type
 
-
+        
         # Parameters related to template SNR sharing
         self._tint=npy.zeros(self.__nTsample)
         self._fint=npy.zeros(self.__nTsample)
@@ -198,18 +198,67 @@ class GenTemplate:
         self.__Tblack=self.__Tchirp-self.__Tchirpd  # End of Blackman window
         self.__Tblack_start=0                       # Start of Blackman window
     
-        # Values for EOB templates are different here
-        # We use SEOBnr approximant via pyCBC
-        # https://pycbc.org/pycbc/latest/html/pycbc.waveform.html#pycbc.waveform.waveform.get_td_waveform
+        # Values for EOB/IRMPhenom templates are different here
+        # We use pyCBC here
         #
         
         if self.__type==0 and self.__fast==False:
             
-            # The signal starting at frequency fDmin (~Tchirp) ie start at f=0.95fmin
-            hp,hq = get_td_waveform(approximant='IMRPhenomTPHM', mass1=self.__m1/Msol,mass2=self.__m2/Msol,delta_t=self.__delta_t,f_lower=self.__fDmin)
 
-            # The signal starting at frequency fDmind (~Tchirpd)
-            hpd,hqd = get_td_waveform(approximant='IMRPhenomTPHM', mass1=self.__m1/Msol,mass2=self.__m2/Msol,delta_t=self.__delta_t,f_lower=self.__fDmind)
+            if self.__kindTemplate=='EOB':    
+
+                # Trick to avoid template gen issue with SEOBNR
+                # One need to compute the ring down frequency first
+
+                frd=2.*f_FRD(m1,m2)
+                d=5
+                while 2**d<frd:
+                    d+=1
+
+                fs_tmp=2**d
+                if fs_tmp/frd<1.5:
+                    fs_tmp=2**(d+1)
+
+                nyq=self.__fe/2
+                fetmp=self.__fe
+                ratio=1.
+                if fs_tmp>nyq/2:
+                    fetmp=2*fs_tmp
+                    ratio=fetmp/self.__fe
+
+                if self.__m1/Msol+self.__m2/Msol>=4.:
+                    hp,hq = get_td_waveform(coa_phase=self.__Phic,approximant='SEOBNRv4_opt', mass1=self.__m1/Msol,mass2=self.__m2/Msol,spin1z=self.__s1z,spin2z=self.__s2z,delta_t=1./fetmp,f_lower=self.__fDmin)
+                    hpd,hqd = get_td_waveform(coa_phase=self.__Phic,approximant='SEOBNRv4_opt', mass1=self.__m1/Msol,mass2=self.__m2/Msol,spin1z=self.__s1z,spin2z=self.__s2z,delta_t=1./fetmp,f_lower=self.__fDmind)
+
+                    # Resample on the fly
+                    if (ratio>1):
+                        hp=hp[::int(ratio)]
+                        hq=hq[::int(ratio)]
+                        hpd=hpd[::int(ratio)]
+                        hqd=hqd[::int(ratio)]
+                else:
+                    hp,hq = get_td_waveform(coa_phase=self.__Phic,approximant='SpinTaylorT4', mass1=self.__m1/Msol,mass2=self.__m2/Msol,spin1z=self.__s1z,spin2z=self.__s2z,delta_t=self.__delta_t,f_lower=self.__fDmin)
+                    hpd,hqd = get_td_waveform(coa_phase=self.__Phic,approximant='SpinTaylorT4', mass1=self.__m1/Msol,mass2=self.__m2/Msol,spin1z=self.__s1z,spin2z=self.__s2z,delta_t=self.__delta_t,f_lower=self.__fDmind)
+
+            else:            
+                # The signal starting at frequency fDmin (~Tchirp) ie start at f=0.95fmin
+                hp,hq = get_td_waveform(approximant='IMRPhenomTPHM', mass1=self.__m1/Msol,mass2=self.__m2/Msol,delta_t=self.__delta_t,f_lower=self.__fDmin)
+                hpd,hqd = get_td_waveform(approximant='IMRPhenomTPHM', mass1=self.__m1/Msol,mass2=self.__m2/Msol,delta_t=self.__delta_t,f_lower=self.__fDmind)
+
+            
+            f = utils.frequency_from_polarizations(hp, hq)
+            limit=0.01*npy.max(npy.abs(npy.asarray(hp)))
+            c1=0
+            for c1 in range(len(hp)-1,-1,-1): # Don't consider 0 at the end
+                if abs(hp.numpy()[c1])>limit:
+                    break
+            hp_tab=hp.numpy()[:c1]
+            hq_tab=hq.numpy()[:c1]
+            freqs=f.numpy()[:c1]
+
+
+
+            # Here hp is longer than hpd
 
             limit=0.01*npy.max(npy.abs(npy.asarray(hp))) # Look for 99% amplitude drop after coalescence
             # Remove 0's at the end
@@ -230,7 +279,10 @@ class GenTemplate:
             self.__Tchirpd=len(hp_tabd)*self.__delta_t
             self.__Tchirpuse=min(len(hp_tab)*self.__delta_t,self.__Tsample)
 
-            #print(self.__Tchirp,self.__Tchirpd)
+
+
+            #print(self.__Tchirp,self.__Tchirpd,self.__Tchirpuse)
+            # Tchirp should be always larger than Tchirpd
 
             # Blackman window is defined differently here
             # Because there is some signal after the merger for those templates
@@ -240,6 +292,7 @@ class GenTemplate:
             
 
             #print(self.__Tblack_start,self.__Tblack)
+            #print(self.__Tblack_start/self.__delta_t,self.__Tblack/self.__delta_t)
         else:
             self.__Tchirpd=self.__Tchirp-0.05 # Apply blackman window to the last 50ms of the frame
     
@@ -276,6 +329,22 @@ class GenTemplate:
         self.__norm=1.
         self.__Stfreqs=npy.arange(len(self.__Sf))*self.__delta_f
         
+        itmin=max(0,len(self.__St)-len(hp_tab))
+        if itmin==0: # Template is not fully contained, truncate it
+            self.__St[:]= hp_tab[len(hp_tab)-len(self.__St):]
+            self.__Stquad[:]= hq_tab[len(hq_tab)-len(self.__St):]
+            self.__Stinit[:]= hp_tab[len(hp_tab)-len(self.__St):]
+            self.__Stfreqs[:]= freqs[len(hp_tab)-len(self.__St):]   
+        else:        # Template is fully contained, pad St
+            self.__St[:]= npy.concatenate((npy.zeros(itmin),hp_tab))
+            self.__Stquad[:]= npy.concatenate((npy.zeros(itmin),hq_tab))
+            self.__Stinit[:]= npy.concatenate((npy.zeros(itmin),hp_tab))
+            self.__Stfreqs[:]= npy.concatenate((npy.zeros(itmin),freqs))
+                #self.__Tblack_start=itmin*self.__delta_t
+                #self.__Tblack=(itmin+100)*self.__delta_t
+        del hp,hq,hp_tab,hq_tab
+
+
         # Noise instance with the right length
         # Note that we will just use the PSD in frequency domain here, so 
         # this object is relatively CPU-harmless
@@ -315,7 +384,7 @@ class GenTemplate:
             self.__St[:]= npy.concatenate((self.h(self.__T[itmin:itmax]),npy.zeros(self.__N-itmax)))
             self.__Stquad[:]= npy.concatenate((self.hq(self.__T[itmin:itmax]),npy.zeros(self.__N-itmax)))
             self.__Stinit[:]= npy.concatenate((self.h(self.__T[itmin:itmax]),npy.zeros(self.__N-itmax)))
-            
+        '''
         elif self.__kindTemplate=='EOB':
                 
             m1=self.__m1/Msol 
@@ -363,13 +432,14 @@ class GenTemplate:
 
             # Logically the size difference should be relatively small has we already evaluated it before
             # But with IMRphenom approximant
-
+            print(len(self.__St),len(hp_tab))
             itmin=max(0,len(self.__St)-len(hp_tab))
             if itmin==0: # Template is not fully contained, truncate it
                 self.__St[:]= hp_tab[len(hp_tab)-len(self.__St):]
                 self.__Stquad[:]= hq_tab[len(hq_tab)-len(self.__St):]
                 self.__Stinit[:]= hp_tab[len(hp_tab)-len(self.__St):]
                 self.__Stfreqs[:]= freqs[len(hp_tab)-len(self.__St):]
+                print("here!!!")
             else:        # Template is fully contained, pad St
                 self.__St[:]= npy.concatenate((npy.zeros(itmin),hp_tab))
                 self.__Stquad[:]= npy.concatenate((npy.zeros(itmin),hq_tab))
@@ -406,7 +476,7 @@ class GenTemplate:
 
         else:
             raise ValueError("Valeur pour kindTemplate non prise en charge")
-
+        '''
         if self.__verb:                       
             w = npy.arange(len(self.__St))
             plt.plot(w, self.__St)
@@ -839,6 +909,8 @@ class GenTemplate:
         S=npy.zeros(len(self.__St)) 
         F=npy.zeros(len(self.__St)) 
         itc=int(tc/self.__delta_t) 
+        if itc==0:
+            itc=1
 
         # St contains the complete frame, so can be longer than S,
         # which is the required data section
@@ -882,6 +954,8 @@ class GenTemplate:
         S=npy.zeros(len(self.__St)) 
         F=npy.zeros(len(self.__St)) 
         itc=int(tc/self.__delta_t) 
+        if itc==0:
+            itc=1
 
         # St contains the complete frame, so can be longer than S,
         # which is the required data section
