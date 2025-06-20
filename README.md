@@ -12,7 +12,6 @@ export PYTHONPATH=$PYTHONPATH:$PWD
 ### 2. Create a conda environment with necessary packages installed
 
 #### Linux case
-
 ```
 conda create --name GWtools python=3.11 -y
 conda activate GWtools
@@ -22,7 +21,23 @@ pip install numcompress
 pip install gwpy
 pip install h5py
 pip install pydot
+pip install scikit-learn
 ```
+
+#### MacOS
+```
+conda create --name GWtools python=3.11 -y
+conda activate GWtools
+pip install tensorflow-metal
+pip install tensorflow-macos
+pip install pycbc
+pip install numcompress
+pip install gwpy
+pip install h5py
+pip install pydot
+pip install scikit-learn
+```
+
 
 ### 3. That's it, test that template generation macro works:
 
