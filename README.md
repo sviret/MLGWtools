@@ -11,9 +11,9 @@ export PYTHONPATH=$PYTHONPATH:$PWD
 
 ### 2. Create a conda environment with necessary packages installed
 
-#### Linux case
+#### Linux case (or MacOS without GPU)
 ```
-conda create --name GWtools python=3.11 -y
+conda create --name GWtools python=3.12 -y
 conda activate GWtools
 pip install tensorflow
 pip install pycbc
@@ -22,9 +22,10 @@ pip install gwpy
 pip install h5py
 pip install pydot
 pip install scikit-learn
+pip install bayesian-optimization (optional)
 ```
 
-#### MacOS
+#### MacOS 
 ```
 conda create --name GWtools python=3.11 -y
 conda activate GWtools
