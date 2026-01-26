@@ -38,7 +38,7 @@ class CNN_Liquid():
         self.__epochs=training.listEpochs()
         self.__SNRs=training.listSNR() 
         self.__initializer = initializers.GlorotNormal() # Xavier initialization
-        self.__opt = optimizers.Adam(learning_rate=self.__lr)
+        self.__opt = optimizers.Adam(learning_rate=self.__lr,clipvalue=1.)
         self.__loss=tf.keras.losses.MeanSquaredError()
         #self.__loss = custom_loss_function(0)
 
