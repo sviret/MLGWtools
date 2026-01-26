@@ -33,7 +33,7 @@ class Multiple_CNN():
         self.__epochs=training.listEpochs()
         self.__SNRs=training.listSNR() 
         self.__initializer = initializers.GlorotNormal() # Xavier initialization
-        self.__opt = optimizers.Adam(learning_rate=self.__lr)
+        self.__opt = optimizers.Adam(learning_rate=self.__lr,clipvalue=1.)
         self.__loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
         self.list_chunks = []
